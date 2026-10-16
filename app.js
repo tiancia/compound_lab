@@ -29,6 +29,11 @@
   let storageFailed = false;
   let userEdited = false;
   let saveChain = Promise.resolve();
+  let editRevision = 0;
+  let tooltipPinned = false;
+  let announcementTimer;
+  let feedbackTimer;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   const fieldMessages = {
     initial: "一次性投入须为 0 至 1 亿之间的金额。",
@@ -51,11 +56,15 @@
   function clearErrors() {
     keys.forEach((key) => {
       $(key).removeAttribute("aria-invalid");
-      $(key).removeAttribute("aria-describedby");
+      if (["initial", "monthly"].includes(key)) $(key).setAttribute("aria-describedby", `${key}-caption`);
+      else $(key).removeAttribute("aria-describedby");
+      if ($(`error-${key}`)) $(`error-${key}`).hidden = true;
     });
     $("form-error").hidden = true;
     $("result-content").hidden = false;
     $("invalid-results").hidden = true;
+    $("results").classList.remove("is-invalid");
+    $("results").style.minHeight = "";
   }
 
   function showError() {
@@ -66,31 +75,47 @@
     });
     invalidKeys.forEach((key) => {
       $(key).setAttribute("aria-invalid", "true");
-      $(key).setAttribute("aria-describedby", "form-error");
+      const fieldError = $(`error-${key}`);
+      if (fieldError) {
+        fieldError.textContent = fieldMessages[key];
+        fieldError.hidden = false;
+      }
+      $(key).setAttribute("aria-describedby", fieldError ? `error-${key}` : "form-error");
       if (["annualFee", "inflation", "timing"].includes(key)) document.querySelector(".advanced").open = true;
     });
     $("form-error").textContent = invalidKeys.map((key) => fieldMessages[key]).join(" ") || "参数无法计算，请检查数值。";
     $("form-error").hidden = false;
+    // 保持结果区高度，输入空值或负号的过程中页面不会突然收缩。
+    $("results").style.minHeight = `${Math.max(460, $("results").getBoundingClientRect().height)}px`;
+    $("results").classList.add("is-invalid");
     $("result-content").hidden = true;
     $("invalid-results").hidden = false;
     $("save-status").textContent = "请补全参数，暂未保存本次修改";
+    $("result-update").textContent = "等待有效参数";
+    $("mobile-summary-label").textContent = "补全参数，继续测算";
+    $("mobile-summary-value").textContent = "—";
+    $("view-results").textContent = "修改参数";
+    clearTimeout(announcementTimer);
+    hideTooltip();
   }
 
   function scheduleSave() {
     if (!hasStorage) return;
     const snapshot = { ...inputs };
+    const revision = editRevision;
     $("save-status").textContent = "正在保存投入计划…";
     saveTimer = setTimeout(() => {
       // 串行写入，避免快速调整时较旧的参数覆盖较新的参数。
       saveChain = saveChain.then(async () => {
         await chrome.storage.local.set({ [storageKey]: snapshot });
         storageFailed = false;
-        if (keys.every((key) => readForm()[key] === String(snapshot[key]))) {
+        // 以编辑版本判断是否为当前结果，10.00 等合法写法也能正确结束保存提示。
+        if (revision === editRevision) {
           $("save-status").textContent = "投入计划已保存到本机";
         }
       }).catch(() => {
         storageFailed = true;
-        $("save-status").textContent = "本机保存失败，当前页面仍可计算";
+        if (revision === editRevision) $("save-status").textContent = "本机保存失败，当前页面仍可计算";
       });
     }, 250);
   }
@@ -109,6 +134,13 @@
       button.classList.toggle("selected", active);
       button.setAttribute("aria-pressed", active);
     });
+    const inChinese = (value) => value >= 10000 ? `${rateFormat.format(value / 10000)} 万元` : `${money(value)} 元`;
+    $("initial-caption").textContent = inputs.initial ? `${inChinese(inputs.initial)}起始本金` : "暂不投入本金，可只设置每月定投";
+    $("monthly-caption").textContent = inputs.monthly ? `每年投入 ${inChinese(inputs.monthly * 12)}` : "暂不定投，仅计算一次性投入";
+    document.querySelectorAll("[data-step-target]").forEach((button) => {
+      const field = $(button.dataset.stepTarget);
+      button.disabled = Number(button.dataset.step) < 0 ? inputs[field.id] <= Number(field.min) : inputs[field.id] >= Number(field.max);
+    });
   }
 
   function renderOverview(result) {
@@ -124,6 +156,10 @@
     $("total-gain").textContent = `${result.totalGain < 0 ? "−" : "+"}¥${compactMoney(Math.abs(result.totalGain))}`;
     $("total-gain").title = currency(result.totalGain);
     $("total-gain").classList.toggle("negative", result.totalGain < 0);
+    $("net-rate").textContent = `年化费用 ${rateFormat.format(inputs.annualFee)}% · 费用后年化 ${rateFormat.format(result.netAnnualRate * 100)}%`;
+    $("mobile-summary-label").textContent = `${inputs.years} 年后资产总额`;
+    $("mobile-summary-value").textContent = `¥${compactMoney(result.finalBalance)}`;
+    $("view-results").textContent = "查看结果 ↓";
     const splitBase = result.totalContributed + Math.max(0, result.totalGain);
     const contributionShare = splitBase > 0 ? result.totalContributed / splitBase * 100 : 0;
     $("split-contributed").style.width = `${contributionShare}%`;
@@ -209,6 +245,8 @@
   }
 
   function axisText(number) {
+    if (number >= 1e16) return `${rateFormat.format(number / 1e16)}亿亿`;
+    if (number >= 1e12) return `${rateFormat.format(number / 1e12)}万亿`;
     if (number >= 100000000) return `${rateFormat.format(number / 100000000)}亿`;
     if (number >= 10000) return `${rateFormat.format(number / 10000)}万`;
     return number < 1000 ? rateFormat.format(number) : money(number);
@@ -232,11 +270,11 @@
     for (let index = 0; index <= 4; index++) {
       const value = yMax / 4 * index;
       svg.append(svgElement("line", { x1: left, y1: y(value), x2: width - right, y2: y(value), stroke: "#e7edef", "stroke-dasharray": "4 5", "stroke-width": 1 }));
-      svg.append(svgElement("text", { x: left - 13, y: y(value) + 4, "text-anchor": "end", fill: "#97a6ae", "font-size": 11 }, axisText(value)));
+      svg.append(svgElement("text", { x: left - 13, y: y(value) + 4, "text-anchor": "end", fill: "#70828b", "font-size": 12 }, axisText(value)));
     }
     const tickCount = width < 450 ? 4 : 5;
     const yearTicks = [...new Set([0, ...Array.from({ length: tickCount }, (_, index) => Math.round(inputs.years / tickCount * (index + 1)))])];
-    yearTicks.forEach((year) => svg.append(svgElement("text", { x: x(year), y: height - 12, "text-anchor": "middle", fill: "#97a6ae", "font-size": 11 }, `${year}年`)));
+    yearTicks.forEach((year) => svg.append(svgElement("text", { x: x(year), y: height - 12, "text-anchor": "middle", fill: "#70828b", "font-size": 12 }, `${year}年`)));
     const points = (entries, key) => entries.map((entry) => `${x(entry.year)},${y(entry[key])}`).join(" ");
     const selectedPoints = points(selected.years, "balance");
     svg.append(svgElement("polygon", { points: `${x(0)},${y(0)} ${selectedPoints} ${x(inputs.years)},${y(0)}`, fill: "#1c7066", "fill-opacity": 0.045 }));
@@ -249,12 +287,25 @@
     svg.append(marker);
     chartData = { series, selected, x, y, left, plotWidth, width, height, top, plotHeight, marker };
     $("chart-legend").replaceChildren(...[{ name: "累计投入", color: "#a9b5bd", principal: true }, ...series.map((item) => ({ name: `${item.rate}%${item.name === "自定义" ? " 自定义" : " 年化"}`, color: item.color }))].map((item) => {
-      const legend = makeText("span", "", `legend-item${item.principal ? " principal" : ""}`);
+      const rate = item.principal ? null : series.find((entry) => item.name.startsWith(`${entry.rate}%`))?.rate;
+      const active = rate === inputs.annualRate;
+      const legend = makeText(item.principal ? "span" : "button", "", `legend-item${item.principal ? " principal" : ""}${active ? " active" : ""}`);
+      if (!item.principal) {
+        legend.type = "button";
+        legend.dataset.rate = rate;
+        legend.setAttribute("aria-pressed", active);
+        legend.setAttribute("aria-label", `查看 ${rate}% 年化情景`);
+      }
       const line = document.createElement("i");
       line.style.background = item.principal ? "transparent" : item.color;
       legend.append(line, document.createTextNode(item.name));
       return legend;
     }));
+    $("chart-year-range").max = inputs.years;
+    $("chart-year-range").value = inputs.years;
+    $("chart-year-label").textContent = `第 ${inputs.years} 年`;
+    $("chart-year-range").setAttribute("aria-valuetext", `第 ${inputs.years} 年`);
+    $("chart-year-range").style.setProperty("--range-progress", "100%");
     hideTooltip();
   }
 
@@ -262,11 +313,18 @@
     $("chart-tooltip").hidden = true;
     chartData?.marker.setAttribute("visibility", "hidden");
     hoverYear = null;
+    tooltipPinned = false;
+    $("chart-dismiss").hidden = true;
   }
 
   function showTooltip(year) {
     if (!chartData || $("result-content").hidden) return;
     hoverYear = Math.max(0, Math.min(inputs.years, year));
+    $("chart-year-range").value = hoverYear;
+    $("chart-year-label").textContent = hoverYear ? `第 ${hoverYear} 年` : "初始投入";
+    $("chart-year-range").setAttribute("aria-valuetext", $("chart-year-label").textContent);
+    $("chart-year-range").style.setProperty("--range-progress", `${hoverYear / inputs.years * 100}%`);
+    $("chart-dismiss").hidden = !tooltipPinned;
     const { series, selected, x, y, marker, top, plotHeight, width, height } = chartData;
     const tooltip = $("chart-tooltip");
     marker.replaceChildren(svgElement("line", { x1: x(hoverYear), y1: top, x2: x(hoverYear), y2: top + plotHeight, stroke: "#b3c6c4", "stroke-dasharray": "4 4" }));
@@ -301,11 +359,25 @@
   }
 
   function update(save = true) {
+    if (save) editRevision += 1;
     clearTimeout(saveTimer);
     clearErrors();
     try {
       inputs = calculator.normalizeInputs(readForm());
       render();
+      $("result-update").textContent = save ? "结果已更新" : "实时计算";
+      if (save) {
+        clearTimeout(announcementTimer);
+        announcementTimer = setTimeout(() => {
+          $("result-announcement").textContent = `结果已更新，${inputs.years} 年后资产总额 ¥${compactMoney(calculator.project(inputs).finalBalance)}。`;
+        }, 400);
+        if (!reducedMotion.matches) {
+          clearTimeout(feedbackTimer);
+          $("results").classList.remove("is-updating");
+          requestAnimationFrame(() => $("results").classList.add("is-updating"));
+          feedbackTimer = setTimeout(() => $("results").classList.remove("is-updating"), 500);
+        }
+      }
       if (save) scheduleSave();
       if (!hasStorage) $("save-status").textContent = "网页模式：参数仅在当前页面使用";
       else if (!save) $("save-status").textContent = storageFailed ? "本机保存失败，当前页面仍可计算" : "投入计划仅保存在本机";
@@ -329,15 +401,26 @@
     if (button.dataset.years !== undefined) $("years").value = button.dataset.years;
     update();
   }));
-  $("scenario-cards").addEventListener("click", (event) => {
+  document.querySelectorAll("[data-step-target]").forEach((button) => button.addEventListener("click", () => {
+    const field = $(button.dataset.stepTarget);
+    const current = field.value.trim() === "" ? NaN : Number(field.value);
+    if (!Number.isFinite(current)) { field.focus(); return; }
+    field.value = Math.min(Number(field.max), Math.max(Number(field.min), current + Number(button.dataset.step)));
+    userEdited = true;
+    update();
+  }));
+  function selectScenario(event) {
     const button = event.target.closest("[data-rate]");
     if (!button) return;
     userEdited = true;
     $("annualRate").value = button.dataset.rate;
     update();
     // 整组卡片重新绘制后仍保留键盘焦点。
-    document.querySelector(`[data-rate="${button.dataset.rate}"]`)?.focus({ preventScroll: true });
-  });
+    const group = event.currentTarget.id;
+    $(group).querySelector(`[data-rate="${button.dataset.rate}"]`)?.focus({ preventScroll: true });
+  }
+  $("scenario-cards").addEventListener("click", selectScenario);
+  $("chart-legend").addEventListener("click", selectScenario);
   $("reset").addEventListener("click", () => {
     userEdited = true;
     writeForm(calculator.DEFAULTS);
@@ -347,22 +430,71 @@
     showAnnual = button.id === "annual-view";
     if (chartData) renderTable(chartData.series);
   }));
-  $("growth-chart").addEventListener("pointermove", (event) => {
+  function inspectChartPointer(event) {
     if (!chartData) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     const pointX = (event.clientX - bounds.left) / bounds.width * chartData.width;
     showTooltip(Math.round((pointX - chartData.left) / chartData.plotWidth * inputs.years));
+  }
+  $("growth-chart").addEventListener("pointermove", (event) => {
+    if (event.pointerType === "mouse" && !tooltipPinned) inspectChartPointer(event);
   });
-  $("growth-chart").addEventListener("pointerleave", hideTooltip);
-  $("growth-chart").addEventListener("blur", hideTooltip);
+  $("growth-chart").addEventListener("pointerdown", (event) => {
+    tooltipPinned = true;
+    inspectChartPointer(event);
+  });
+  $("growth-chart").addEventListener("pointerleave", () => { if (!tooltipPinned) hideTooltip(); });
+  $("growth-chart").addEventListener("pointercancel", hideTooltip);
+  $("growth-chart").addEventListener("blur", () => { if (!tooltipPinned) hideTooltip(); });
   $("growth-chart").addEventListener("keydown", (event) => {
     if (event.key === "Escape") hideTooltip();
     if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
       event.preventDefault();
+      tooltipPinned = true;
       const next = event.key === "Home" ? 0 : event.key === "End" ? inputs.years : (hoverYear ?? 0) + (event.key === "ArrowRight" ? 1 : -1);
       showTooltip(next);
+      $("chart-status").textContent = `${$("chart-year-label").textContent}，所选情景资产 ${currency(chartData.selected.years[hoverYear].balance)}`;
     }
   });
+  $("chart-year-range").addEventListener("input", (event) => {
+    tooltipPinned = true;
+    showTooltip(Number(event.target.value));
+    if (chartData) $("chart-status").textContent = `${$("chart-year-label").textContent}，所选情景资产 ${currency(chartData.selected.years[hoverYear].balance)}`;
+  });
+  $("chart-dismiss").addEventListener("click", () => { hideTooltip(); $("chart-year-range").focus({ preventScroll: true }); });
+  $("chart-year-range").addEventListener("keydown", (event) => { if (event.key === "Escape") hideTooltip(); });
+  document.addEventListener("pointerdown", (event) => {
+    if (!event.target.closest(".chart-wrap, .chart-year-control")) hideTooltip();
+  });
+
+  function focusInvalidInput() {
+    const field = form.querySelector("[aria-invalid=true]");
+    if (!field) return;
+    field.scrollIntoView({ behavior: reducedMotion.matches ? "instant" : "smooth", block: "center" });
+    field.focus({ preventScroll: true });
+  }
+  $("fix-input").addEventListener("click", focusInvalidInput);
+  $("view-results").addEventListener("click", () => {
+    if ($("results").classList.contains("is-invalid")) { focusInvalidInput(); return; }
+    $("results").scrollIntoView({ behavior: reducedMotion.matches ? "instant" : "smooth", block: "start" });
+    $("results").focus({ preventScroll: true });
+  });
+  const mobileView = window.matchMedia("(max-width: 700px)");
+  let planVisible = false;
+  let resultVisible = false;
+  const syncMobileSummary = () => { $("mobile-summary").hidden = !(mobileView.matches && planVisible && !resultVisible); };
+  new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.target.classList.contains("plan-panel")) planVisible = entry.isIntersecting;
+      else resultVisible = entry.isIntersecting;
+    });
+    syncMobileSummary();
+  }, { threshold: 0 }).observe(document.querySelector(".plan-panel"));
+  new IntersectionObserver((entries) => {
+    resultVisible = entries[0].isIntersecting;
+    syncMobileSummary();
+  }, { threshold: 0.4 }).observe(document.querySelector(".result-overview"));
+  mobileView.addEventListener("change", syncMobileSummary);
 
   let lastChartWidth = 0;
   new ResizeObserver((entries) => {

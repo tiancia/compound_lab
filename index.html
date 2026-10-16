@@ -17,7 +17,7 @@
     <div class="header-inner">
       <a class="brand" href="#" aria-label="年轮复利计算器首页"><img src="logo.svg" alt="" width="36" height="36"><span>年轮<span class="brand-description">复利计算器</span></span></a>
       <nav aria-label="页面导航"><a class="nav-active" href="#calculator">复利测算</a><a href="#reference">年化参考 <span aria-hidden="true">↗</span></a></nav>
-      <span class="local-badge"><span aria-hidden="true"></span>本地计算，安心规划</span>
+      <span class="local-badge"><span aria-hidden="true"></span>离线计算 · 无需账户</span>
     </div>
   </header>
 
@@ -30,14 +30,15 @@
     <div class="workspace">
       <aside class="plan-panel" aria-labelledby="plan-title">
         <div class="panel-heading"><h2 id="plan-title">投入计划</h2><button class="text-button" id="reset" type="button">恢复默认</button></div>
+        <p class="plan-subtitle">调整参数，结果实时更新</p>
         <form id="plan-form" novalidate>
-          <div class="field"><label for="initial">一次性投入</label><div class="money-input"><span aria-hidden="true">¥</span><input id="initial" name="initial" type="number" inputmode="decimal" min="0" max="100000000" step="100" value="100000" required><span>元</span></div><p class="field-help">现在投入的起始本金，可设为 0</p></div>
-          <div class="field"><label for="monthly">每月定投</label><div class="money-input"><span aria-hidden="true">¥</span><input id="monthly" name="monthly" type="number" inputmode="decimal" min="0" max="100000000" step="100" value="2000" required><span>元 / 月</span></div><div class="quick-picks" aria-label="每月定投快捷金额"><button type="button" data-monthly="1000">1,000</button><button type="button" data-monthly="2000" class="selected">2,000</button><button type="button" data-monthly="5000">5,000</button></div></div>
-          <div class="field years-field"><div class="label-row"><label for="years">投资年限</label><div class="year-number"><input id="years" name="years" type="number" min="1" max="50" step="1" value="20" required aria-label="投资年限（年）"><span>年</span></div></div><input id="years-range" type="range" min="1" max="50" value="20" aria-label="拖动设置投资年限"><div class="range-labels"><span>1 年</span><span>25 年</span><span>50 年</span></div><div class="quick-picks year-picks" aria-label="投资年限快捷选项"><button type="button" data-years="5">5 年</button><button type="button" data-years="10">10 年</button><button type="button" data-years="20" class="selected">20 年</button><button type="button" data-years="30">30 年</button></div></div>
-          <div class="field rate-field"><label for="annualRate">测算年化收益率</label><div class="money-input"><input id="annualRate" name="annualRate" type="number" inputmode="decimal" min="-90" max="50" step="0.01" value="10" required><span>% / 年</span></div><p class="field-help">可输入负值，观察亏损情景</p></div>
+          <div class="field"><label for="initial">一次性投入</label><div class="money-input amount-input"><span aria-hidden="true">¥</span><input id="initial" name="initial" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="100000" required aria-describedby="initial-caption"><span>元</span><button class="stepper-button" type="button" data-step-target="initial" data-step="-10000" aria-label="本金减少一万元">−</button><button class="stepper-button" type="button" data-step-target="initial" data-step="10000" aria-label="本金增加一万元">＋</button></div><p class="field-help" id="initial-caption">10 万元起始本金</p><p class="field-error" id="error-initial" hidden></p></div>
+          <div class="field"><label for="monthly">每月定投</label><div class="money-input amount-input"><span aria-hidden="true">¥</span><input id="monthly" name="monthly" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="2000" required aria-describedby="monthly-caption"><span>元 / 月</span><button class="stepper-button" type="button" data-step-target="monthly" data-step="-500" aria-label="定投减少五百元">−</button><button class="stepper-button" type="button" data-step-target="monthly" data-step="500" aria-label="定投增加五百元">＋</button></div><p class="field-help" id="monthly-caption">每年投入 2.4 万元</p><p class="field-error" id="error-monthly" hidden></p><div class="quick-picks" aria-label="每月定投快捷金额"><button type="button" data-monthly="1000">1,000</button><button type="button" data-monthly="2000" class="selected">2,000</button><button type="button" data-monthly="5000">5,000</button></div></div>
+          <div class="field years-field"><div class="label-row"><label for="years">投资年限</label><div class="year-number"><input id="years" name="years" type="number" min="1" max="50" step="1" value="20" required aria-label="投资年限（年）"><span>年</span></div></div><input id="years-range" type="range" min="1" max="50" value="20" aria-label="拖动设置投资年限"><div class="range-labels"><span>1 年</span><span>25 年</span><span>50 年</span></div><p class="field-error" id="error-years" hidden></p><div class="quick-picks year-picks" aria-label="投资年限快捷选项"><button type="button" data-years="5">5 年</button><button type="button" data-years="10">10 年</button><button type="button" data-years="20" class="selected">20 年</button><button type="button" data-years="30">30 年</button></div></div>
+          <div class="field rate-field"><label for="annualRate">测算年化收益率</label><div class="money-input"><input id="annualRate" name="annualRate" type="number" inputmode="decimal" min="-90" max="50" step="any" value="10" required><span>% / 年</span></div><p class="field-help">可输入负值，观察亏损情景</p><p class="field-error" id="error-annualRate" hidden></p></div>
           <details class="advanced"><summary>费用与购买力设置 <span aria-hidden="true">＋</span></summary><div class="advanced-body">
-            <div class="small-field"><label for="annualFee">年化费用</label><div class="small-number"><input id="annualFee" name="annualFee" type="number" inputmode="decimal" min="0" max="5" step="0.01" value="0.5" required><span>%</span></div></div>
-            <div class="small-field"><label for="inflation">年通胀率</label><div class="small-number"><input id="inflation" name="inflation" type="number" inputmode="decimal" min="0" max="20" step="0.1" value="2" required><span>%</span></div></div>
+            <div class="small-field"><label for="annualFee">年化费用</label><div class="small-number"><input id="annualFee" name="annualFee" type="number" inputmode="decimal" min="0" max="5" step="any" value="0.5" required><span>%</span></div></div><p class="field-error" id="error-annualFee" hidden></p>
+            <div class="small-field"><label for="inflation">年通胀率</label><div class="small-number"><input id="inflation" name="inflation" type="number" inputmode="decimal" min="0" max="20" step="any" value="2" required><span>%</span></div></div><p class="field-error" id="error-inflation" hidden></p>
             <div class="small-field"><label for="timing">定投时间</label><select id="timing" name="timing"><option value="end">每月月末</option><option value="start">每月月初</option></select></div>
             <p class="field-help">费用与通胀为可调整假设，请按实际情况设置。</p>
           </div></details>
@@ -46,10 +47,11 @@
         <div class="plan-note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 6 2v5c0 4-6 8-6 8S4 13 4 9V4Z"/><path d="m7 9 2 2 4-4"/></svg><p id="save-status" aria-live="polite">参数仅在当前页面使用</p></div>
       </aside>
 
-      <section class="results" id="results" aria-label="复利计算结果">
+      <section class="results" id="results" aria-label="复利计算结果" tabindex="-1">
+        <p class="result-update" id="result-update">实时计算</p>
         <div id="result-content">
           <div class="result-overview">
-            <div class="final-amount-block"><div class="result-eyebrow"><span><span id="result-years">20</span> 年后的资产总额</span><span id="selected-rate" class="rate-tag">年化 10%</span></div><p class="final-amount"><span class="currency">¥</span><span id="final-balance">—</span></p><p class="real-value">约相当于今天的 <strong id="real-balance">—</strong> 购买力 <span id="inflation-caption">（通胀 2%）</span></p></div>
+            <div class="final-amount-block"><div class="result-eyebrow"><span><span id="result-years">20</span> 年后的资产总额</span><span id="selected-rate" class="rate-tag">年化 10%</span></div><p class="final-amount"><span class="currency">¥</span><span id="final-balance">—</span></p><p class="real-value">约相当于今天的 <strong id="real-balance">—</strong> 购买力 <span id="inflation-caption">（通胀 2%）</span></p><p class="assumption-line" id="net-rate">年化费用 0.5% · 费用后年化 9.45%</p></div>
             <div class="overview-metrics"><div><span class="metric-label"><i class="contribution-dot"></i>累计投入</span><strong id="total-contributed">—</strong></div><div><span class="metric-label"><i class="gain-dot"></i>投资收益</span><strong class="gain-text" id="total-gain">—</strong></div><div class="asset-split" aria-label="投入与收益占比"><span id="split-contributed"></span><span id="split-gain"></span></div></div>
           </div>
 
@@ -57,14 +59,15 @@
             <div class="section-heading"><div><h2>资产增长轨迹</h2><p>相同投入，不同年化。把差距交给时间看。</p></div><span class="chart-unit">单位：元</span></div>
             <div class="chart-legend" id="chart-legend"></div>
             <div class="chart-wrap" id="chart-wrap"><svg id="growth-chart" viewBox="0 0 900 310" role="img" aria-labelledby="chart-title chart-desc" tabindex="0"><title id="chart-title">资产增长情景图</title><desc id="chart-desc">调整左侧投入计划以查看结果。</desc></svg><div class="chart-tooltip" id="chart-tooltip" hidden></div></div>
-            <p class="chart-footnote">曲线按固定年化平滑计算，实际市场会有涨跌；可移动指针或用左右方向键查看各年金额。</p>
+            <div class="chart-year-control"><label for="chart-year-range">查看年份 <strong id="chart-year-label">第 20 年</strong></label><input id="chart-year-range" type="range" min="0" max="20" step="1" value="20" aria-label="查看图表年份"><button class="chart-dismiss text-button" id="chart-dismiss" type="button" hidden>收起金额</button><span id="chart-status" class="sr-only" aria-live="polite"></span></div>
+            <p class="chart-footnote">拖动年份、轻点曲线或使用左右方向键查看金额。曲线为固定年化假设，实际市场会有涨跌。</p>
           </div>
 
           <div class="scenario-section"><div class="section-heading"><h2>换一种年化，结果如何？</h2><span class="section-hint">点击切换测算情景</span></div><div class="scenario-grid" id="scenario-cards"></div><p class="scenario-note" id="scenario-note">以上均已扣除年化费用 0.5%，为假设测算。</p></div>
 
-          <div class="table-section"><div class="section-heading"><div><h2>把未来拆成年份</h2><p>资产总额包含本金与收益。</p></div><div class="segmented" aria-label="年份显示方式"><button id="milestone-view" class="active" type="button" aria-pressed="true">关键年份</button><button id="annual-view" type="button" aria-pressed="false">逐年查看</button></div></div><div class="table-scroll"><table><caption class="sr-only">不同年份与年化收益率下的资产总额，单位元</caption><thead id="year-table-head"></thead><tbody id="year-table-body"></tbody></table></div></div>
+          <div class="table-section"><div class="section-heading"><div><h2>把未来拆成年份</h2><p>资产总额包含本金与收益。</p></div><div class="segmented" aria-label="年份显示方式"><button id="milestone-view" class="active" type="button" aria-pressed="true">关键年份</button><button id="annual-view" type="button" aria-pressed="false">逐年查看</button></div></div><p class="table-help">左右滑动查看全部年化，所选情景已高亮</p><div class="table-scroll" tabindex="0" role="region" aria-label="逐年金额对比，可左右滚动"><table><caption class="sr-only">不同年份与年化收益率下的资产总额，单位元</caption><thead id="year-table-head"></thead><tbody id="year-table-body"></tbody></table></div></div>
         </div>
-        <div id="invalid-results" class="invalid-results" hidden><h2>补全投入计划，即可继续测算</h2><p>请检查左侧标出的参数。页面不会将空值当作 0 计算。</p></div>
+        <div id="invalid-results" class="invalid-results" hidden><h2>补全投入计划，即可继续测算</h2><p>请检查标出的参数。空值不会当作 0 计算。</p><button class="text-button" id="fix-input" type="button">返回修改参数</button></div>
       </section>
     </div>
 
@@ -79,6 +82,8 @@
     </section>
     <footer><a class="footer-brand" href="#calculator"><img src="logo.svg" alt="" width="22" height="22">年轮</a><span>给每一笔投入，一点时间。</span><span>离线可用 · 无需账户</span></footer>
   </main>
+  <div class="mobile-summary" id="mobile-summary" hidden><div><span id="mobile-summary-label">20 年后资产总额</span><strong id="mobile-summary-value">—</strong></div><button id="view-results" type="button">查看结果 <span aria-hidden="true">↓</span></button></div>
+  <span id="result-announcement" class="sr-only" aria-live="polite" aria-atomic="true"></span>
   <noscript><p>请启用 JavaScript 以使用复利计算器。</p></noscript>
 </body>
 </html>
