@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="输入本金、每月定投和投资年限，对比不同年化收益下的资产总额。基于纳斯达克 100 历史参考的本地复利计算器。">
+  <title>年轮 · 复利计算器</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="calculator.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#results">跳到计算结果</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#" aria-label="年轮复利计算器首页"><img src="logo.svg" alt="" width="36" height="36"><span>年轮<span class="brand-description">复利计算器</span></span></a>
+      <nav aria-label="页面导航"><a class="nav-active" href="#calculator">复利测算</a><a href="#reference">年化参考 <span aria-hidden="true">↗</span></a></nav>
+      <span class="local-badge"><span aria-hidden="true"></span>本地计算，安心规划</span>
+    </div>
+  </header>
+
+  <main class="page-shell" id="calculator">
+    <div class="page-heading">
+      <div><h1>你的投入，<span id="heading-years">20</span> 年后会怎样？</h1><p>从一笔本金、一份定投开始，看见时间带来的变化。</p></div>
+      <span class="benchmark-badge">参考基准 <strong>纳斯达克 100</strong></span>
+    </div>
+
+    <div class="workspace">
+      <aside class="plan-panel" aria-labelledby="plan-title">
+        <div class="panel-heading"><h2 id="plan-title">投入计划</h2><button class="text-button" id="reset" type="button">恢复默认</button></div>
+        <form id="plan-form" novalidate>
+          <div class="field"><label for="initial">一次性投入</label><div class="money-input"><span aria-hidden="true">¥</span><input id="initial" name="initial" type="number" inputmode="decimal" min="0" max="100000000" step="100" value="100000" required><span>元</span></div><p class="field-help">现在投入的起始本金，可设为 0</p></div>
+          <div class="field"><label for="monthly">每月定投</label><div class="money-input"><span aria-hidden="true">¥</span><input id="monthly" name="monthly" type="number" inputmode="decimal" min="0" max="100000000" step="100" value="2000" required><span>元 / 月</span></div><div class="quick-picks" aria-label="每月定投快捷金额"><button type="button" data-monthly="1000">1,000</button><button type="button" data-monthly="2000" class="selected">2,000</button><button type="button" data-monthly="5000">5,000</button></div></div>
+          <div class="field years-field"><div class="label-row"><label for="years">投资年限</label><div class="year-number"><input id="years" name="years" type="number" min="1" max="50" step="1" value="20" required aria-label="投资年限（年）"><span>年</span></div></div><input id="years-range" type="range" min="1" max="50" value="20" aria-label="拖动设置投资年限"><div class="range-labels"><span>1 年</span><span>25 年</span><span>50 年</span></div><div class="quick-picks year-picks" aria-label="投资年限快捷选项"><button type="button" data-years="5">5 年</button><button type="button" data-years="10">10 年</button><button type="button" data-years="20" class="selected">20 年</button><button type="button" data-years="30">30 年</button></div></div>
+          <div class="field rate-field"><label for="annualRate">测算年化收益率</label><div class="money-input"><input id="annualRate" name="annualRate" type="number" inputmode="decimal" min="-90" max="50" step="0.01" value="10" required><span>% / 年</span></div><p class="field-help">可输入负值，观察亏损情景</p></div>
+          <details class="advanced"><summary>费用与购买力设置 <span aria-hidden="true">＋</span></summary><div class="advanced-body">
+            <div class="small-field"><label for="annualFee">年化费用</label><div class="small-number"><input id="annualFee" name="annualFee" type="number" inputmode="decimal" min="0" max="5" step="0.01" value="0.5" required><span>%</span></div></div>
+            <div class="small-field"><label for="inflation">年通胀率</label><div class="small-number"><input id="inflation" name="inflation" type="number" inputmode="decimal" min="0" max="20" step="0.1" value="2" required><span>%</span></div></div>
+            <div class="small-field"><label for="timing">定投时间</label><select id="timing" name="timing"><option value="end">每月月末</option><option value="start">每月月初</option></select></div>
+            <p class="field-help">费用与通胀为可调整假设，请按实际情况设置。</p>
+          </div></details>
+          <p id="form-error" class="form-error" role="alert" hidden></p>
+        </form>
+        <div class="plan-note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 6 2v5c0 4-6 8-6 8S4 13 4 9V4Z"/><path d="m7 9 2 2 4-4"/></svg><p id="save-status" aria-live="polite">参数仅在当前页面使用</p></div>
+      </aside>
+
+      <section class="results" id="results" aria-label="复利计算结果">
+        <div id="result-content">
+          <div class="result-overview">
+            <div class="final-amount-block"><div class="result-eyebrow"><span><span id="result-years">20</span> 年后的资产总额</span><span id="selected-rate" class="rate-tag">年化 10%</span></div><p class="final-amount"><span class="currency">¥</span><span id="final-balance">—</span></p><p class="real-value">约相当于今天的 <strong id="real-balance">—</strong> 购买力 <span id="inflation-caption">（通胀 2%）</span></p></div>
+            <div class="overview-metrics"><div><span class="metric-label"><i class="contribution-dot"></i>累计投入</span><strong id="total-contributed">—</strong></div><div><span class="metric-label"><i class="gain-dot"></i>投资收益</span><strong class="gain-text" id="total-gain">—</strong></div><div class="asset-split" aria-label="投入与收益占比"><span id="split-contributed"></span><span id="split-gain"></span></div></div>
+          </div>
+
+          <div class="chart-section">
+            <div class="section-heading"><div><h2>资产增长轨迹</h2><p>相同投入，不同年化。把差距交给时间看。</p></div><span class="chart-unit">单位：元</span></div>
+            <div class="chart-legend" id="chart-legend"></div>
+            <div class="chart-wrap" id="chart-wrap"><svg id="growth-chart" viewBox="0 0 900 310" role="img" aria-labelledby="chart-title chart-desc" tabindex="0"><title id="chart-title">资产增长情景图</title><desc id="chart-desc">调整左侧投入计划以查看结果。</desc></svg><div class="chart-tooltip" id="chart-tooltip" hidden></div></div>
+            <p class="chart-footnote">曲线按固定年化平滑计算，实际市场会有涨跌；可移动指针或用左右方向键查看各年金额。</p>
+          </div>
+
+          <div class="scenario-section"><div class="section-heading"><h2>换一种年化，结果如何？</h2><span class="section-hint">点击切换测算情景</span></div><div class="scenario-grid" id="scenario-cards"></div><p class="scenario-note" id="scenario-note">以上均已扣除年化费用 0.5%，为假设测算。</p></div>
+
+          <div class="table-section"><div class="section-heading"><div><h2>把未来拆成年份</h2><p>资产总额包含本金与收益。</p></div><div class="segmented" aria-label="年份显示方式"><button id="milestone-view" class="active" type="button" aria-pressed="true">关键年份</button><button id="annual-view" type="button" aria-pressed="false">逐年查看</button></div></div><div class="table-scroll"><table><caption class="sr-only">不同年份与年化收益率下的资产总额，单位元</caption><thead id="year-table-head"></thead><tbody id="year-table-body"></tbody></table></div></div>
+        </div>
+        <div id="invalid-results" class="invalid-results" hidden><h2>补全投入计划，即可继续测算</h2><p>请检查左侧标出的参数。页面不会将空值当作 0 计算。</p></div>
+      </section>
+    </div>
+
+    <section class="reference-section" id="reference" aria-labelledby="reference-title">
+      <div class="reference-intro"><span class="reference-icon" aria-hidden="true">≈</span><div><h2 id="reference-title">年化参考，从哪里来？</h2><p>这里的纳斯达克指纳斯达克 100，常见跟踪产品包括 QQQ；不等同于纳斯达克综合指数。</p></div></div>
+      <div class="reference-grid">
+        <article><span class="reference-label">长期历史参考</span><p class="reference-stat">14.25<span>% / 年</span></p><p>Nasdaq 官方公布，1985 年 1 月 31 日至 2024 年末的复合年化。不同起止时间会得到不同结果。</p><a href="https://www.nasdaq.com/articles/nasdaq-100-indexr-celebrates-40-years-innovation" target="_blank" rel="noopener noreferrer">Nasdaq 40 周年回顾 <span aria-hidden="true">↗</span></a></article>
+        <article><span class="reference-label">另一段完整历史</span><p class="reference-stat">16.0<span>% / 年</span></p><p>2007 年末至 2025 年末，总回报口径的复合年化，包含股息再投资。这是一个特定的 18 年区间。</p><a href="https://www.nasdaq.com/2025-Nasdaq-100-Annual-Reconstitution" target="_blank" rel="noopener noreferrer">Nasdaq 2025 年度回顾 <span aria-hidden="true">↗</span></a></article>
+        <article><span class="reference-label">年化并不意味着每年上涨</span><p class="reference-stat volatility-stat"><span class="negative">−32.38%</span><span class="positive">+55.13%</span></p><p>纳斯达克 100 总回报：2022 年下跌，2023 年反弹。定投结果还取决于涨跌发生的顺序。</p><a href="https://www.nasdaq.com/docs/index/xndx356c-factsheet" target="_blank" rel="noopener noreferrer">Nasdaq 数据表，XNDX 列 <span aria-hidden="true">↗</span></a></article>
+      </div>
+      <div class="method-notes"><p><strong>如何使用这些数字</strong>　6% 和 10% 是用于对比的规划假设，14.25% 是历史参考，均不是收益预测。默认使用 10% 测算，不代表预期收益。</p><p><strong>计算口径</strong>　按有效月收益率复利；净年化 = (1 + 年化收益率) × (1 − 年化费用) − 1。金额按人民币展示，但历史指数为美元口径，未模拟汇率、税费、溢价和跟踪误差，也未回放真实市场路径。历史收益不保证未来表现。</p></div>
+    </section>
+    <footer><a class="footer-brand" href="#calculator"><img src="logo.svg" alt="" width="22" height="22">年轮</a><span>给每一笔投入，一点时间。</span><span>离线可用 · 无需账户</span></footer>
+  </main>
+  <noscript><p>请启用 JavaScript 以使用复利计算器。</p></noscript>
+</body>
+</html>
