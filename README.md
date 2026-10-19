@@ -4,6 +4,8 @@
 
 ## 打开使用
 
+**在线使用：** [年轮 · 复利计算器](https://compoundlab-nine.vercel.app/)
+
 **直接使用：** 双击 `index.html`，用 Chrome 或 Edge 打开。无需安装依赖或启动服务；网页模式的参数只在当前页面保留。
 
 **作为 Chrome 插件使用：**
