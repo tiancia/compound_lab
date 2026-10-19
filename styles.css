@@ -101,6 +101,10 @@ h1 { font-size: 32px; font-weight: 650; line-height: 1.45; letter-spacing: -.7px
 .plan-subtitle + #plan-form { margin-top: 0; }
 .field { margin-bottom: 24px; }
 .field label { display: block; margin-bottom: 9px; color: #3d5963; font-size: 14px; font-weight: 550; }
+.frequency-field { grid-column: 1 / -1; }
+.frequency-field select { width: 100%; }
+.trading-days-setting { margin-top: 17px; margin-bottom: 0; }
+.trading-days-setting label { margin-bottom: 0; font-size: 13px; font-weight: 500; }
 .money-input { display: flex; align-items: center; gap: 7px; height: 54px; padding: 0 12px; border: 1px solid #cfdddf; border-radius: 9px; background: #fbfcfc; transition: border-color .15s, background-color .15s, box-shadow .15s; }
 .money-input:hover { border-color: #b0c8c8; }
 .money-input:focus-within { border-color: var(--green); background: white; box-shadow: 0 0 0 3px #17695e12; }

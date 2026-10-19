@@ -38,25 +38,45 @@
   const fieldMessages = {
     initial: "一次性投入须为 0 至 1 亿之间的金额。",
     monthly: "每月定投须为 0 至 1 亿之间的金额。",
+    daily: "每日定投须为 0 至 1 亿之间的金额。",
+    tradingDays: "每年交易日须为 1 至 366 之间的整数。",
+    frequency: "请选择按月或按交易日定投。",
     years: "投资年限须为 1 至 50 之间的整数。",
     annualRate: "年化收益率须为 −90% 至 50% 之间的数值。",
     annualFee: "年化费用须为 0% 至 5% 之间的数值。",
     inflation: "年通胀率须为 0% 至 20% 之间的数值。",
-    timing: "请选择月初或月末定投。"
+    timing: "请选择期初或期末定投。"
   };
 
   function readForm() {
-    return Object.fromEntries(keys.map((key) => [key, $(key).value]));
+    const raw = Object.fromEntries(keys.map((key) => [key, $(key).value]));
+    // 隐藏的另一种频率沿用上次有效金额，避免空值阻塞当前测算。
+    if (raw.frequency === "daily") raw.monthly = inputs.monthly;
+    else { raw.daily = inputs.daily; raw.tradingDays = inputs.tradingDays; }
+    return raw;
   }
 
   function writeForm(value) {
+    inputs = { ...value };
     keys.forEach((key) => { $(key).value = value[key]; });
+    syncContributionMode();
+  }
+
+  function syncContributionMode() {
+    const daily = $("frequency").value === "daily";
+    $("monthly-field").hidden = daily;
+    $("daily-field").hidden = !daily;
+    $("monthly").disabled = daily;
+    $("daily").disabled = !daily;
+    $("tradingDays").disabled = !daily;
+    $("timing").querySelector('[value="end"]').textContent = daily ? "每个交易日日末" : "每月月末";
+    $("timing").querySelector('[value="start"]').textContent = daily ? "每个交易日日初" : "每月月初";
   }
 
   function clearErrors() {
     keys.forEach((key) => {
       $(key).removeAttribute("aria-invalid");
-      if (["initial", "monthly"].includes(key)) $(key).setAttribute("aria-describedby", `${key}-caption`);
+      if (["initial", "monthly", "daily", "tradingDays"].includes(key)) $(key).setAttribute("aria-describedby", `${key}-caption`);
       else $(key).removeAttribute("aria-describedby");
       if ($(`error-${key}`)) $(`error-${key}`).hidden = true;
     });
@@ -121,11 +141,17 @@
   }
 
   function syncControls() {
+    syncContributionMode();
     $("years-range").value = inputs.years;
     const progress = (inputs.years - 1) / 49 * 100;
     $("years-range").style.background = `linear-gradient(to right,#1c7066 0%,#1c7066 ${progress}%,#e7edee ${progress}%,#e7edee 100%)`;
     document.querySelectorAll("[data-monthly]").forEach((button) => {
       const active = Number(button.dataset.monthly) === inputs.monthly;
+      button.classList.toggle("selected", active);
+      button.setAttribute("aria-pressed", active);
+    });
+    document.querySelectorAll("[data-daily]").forEach((button) => {
+      const active = Number(button.dataset.daily) === inputs.daily;
       button.classList.toggle("selected", active);
       button.setAttribute("aria-pressed", active);
     });
@@ -135,8 +161,9 @@
       button.setAttribute("aria-pressed", active);
     });
     const inChinese = (value) => value >= 10000 ? `${rateFormat.format(value / 10000)} 万元` : `${money(value)} 元`;
-    $("initial-caption").textContent = inputs.initial ? `${inChinese(inputs.initial)}起始本金` : "暂不投入本金，可只设置每月定投";
+    $("initial-caption").textContent = inputs.initial ? `${inChinese(inputs.initial)}起始本金` : "暂不投入本金，可只设置定投";
     $("monthly-caption").textContent = inputs.monthly ? `每年投入 ${inChinese(inputs.monthly * 12)}` : "暂不定投，仅计算一次性投入";
+    $("daily-caption").textContent = inputs.daily ? `每年约投入 ${inChinese(inputs.daily * inputs.tradingDays)}（${inputs.tradingDays} 次）` : "暂不定投，仅计算一次性投入";
     document.querySelectorAll("[data-step-target]").forEach((button) => {
       const field = $(button.dataset.stepTarget);
       button.disabled = Number(button.dataset.step) < 0 ? inputs[field.id] <= Number(field.min) : inputs[field.id] >= Number(field.max);
@@ -157,6 +184,11 @@
     $("total-gain").title = currency(result.totalGain);
     $("total-gain").classList.toggle("negative", result.totalGain < 0);
     $("net-rate").textContent = `年化费用 ${rateFormat.format(inputs.annualFee)}% · 费用后年化 ${rateFormat.format(result.netAnnualRate * 100)}%`;
+    const daily = inputs.frequency === "daily";
+    const amount = daily ? inputs.daily : inputs.monthly;
+    $("contribution-summary").textContent = amount === 0 ? "仅一次性投入，未设置定投"
+      : daily ? `每个交易日 ${currency(amount)} · 每年按 ${inputs.tradingDays} 天估算 · 共 ${money(result.totalPeriods)} 次`
+        : `每月 ${currency(amount)} · 共 ${money(result.totalPeriods)} 次`;
     $("mobile-summary-label").textContent = `${inputs.years} 年后资产总额`;
     $("mobile-summary-value").textContent = `¥${compactMoney(result.finalBalance)}`;
     $("view-results").textContent = "查看结果 ↓";
@@ -254,7 +286,8 @@
 
   function renderChart(series, selected) {
     const svg = $("growth-chart");
-    svg.replaceChildren(svgElement("title", { id: "chart-title" }, "不同年化的资产增长轨迹"), svgElement("desc", { id: "chart-desc" }, `一次性投入 ${currency(inputs.initial)}，每月定投 ${currency(inputs.monthly)}，投资 ${inputs.years} 年。所选年化 ${inputs.annualRate}%，期末资产 ${currency(selected.finalBalance)}。使用左右方向键查看年份，Escape 关闭提示。`));
+    const contribution = inputs.frequency === "daily" ? `每个交易日定投 ${currency(inputs.daily)}，每年按 ${inputs.tradingDays} 天估算` : `每月定投 ${currency(inputs.monthly)}`;
+    svg.replaceChildren(svgElement("title", { id: "chart-title" }, "不同年化的资产增长轨迹"), svgElement("desc", { id: "chart-desc" }, `一次性投入 ${currency(inputs.initial)}，${contribution}，投资 ${inputs.years} 年。所选年化 ${inputs.annualRate}%，期末资产 ${currency(selected.finalBalance)}。使用左右方向键查看年份，Escape 关闭提示。`));
     // 与容器同宽的坐标系，避免手机上将轴文字随 900px 图形缩小。
     const width = Math.max(280, Math.min(900, Math.round(svg.clientWidth) || 900));
     const height = width < 450 ? 250 : 310;
@@ -362,6 +395,7 @@
     if (save) editRevision += 1;
     clearTimeout(saveTimer);
     clearErrors();
+    syncContributionMode();
     try {
       inputs = calculator.normalizeInputs(readForm());
       render();
@@ -393,11 +427,12 @@
     update();
   });
   form.addEventListener("change", (event) => {
-    if (event.target.id === "timing") { userEdited = true; update(); }
+    if (["timing", "frequency"].includes(event.target.id)) { userEdited = true; update(); }
   });
-  document.querySelectorAll("[data-monthly], [data-years]").forEach((button) => button.addEventListener("click", () => {
+  document.querySelectorAll("[data-monthly], [data-daily], [data-years]").forEach((button) => button.addEventListener("click", () => {
     userEdited = true;
     if (button.dataset.monthly !== undefined) $("monthly").value = button.dataset.monthly;
+    if (button.dataset.daily !== undefined) $("daily").value = button.dataset.daily;
     if (button.dataset.years !== undefined) $("years").value = button.dataset.years;
     update();
   }));

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "年轮 · 复利计算器",
   "version": "1.0.0",
-  "description": "设置本金与每月定投，比较不同年化、不同年限的资产总额。以纳斯达克 100 历史数据为参考，所有计算在本地完成。",
+  "description": "设置本金与每月或每个交易日定投，比较不同年化、不同年限的资产总额。以纳斯达克 100 历史数据为参考，所有计算在本地完成。",
   "permissions": ["storage"],
   "background": { "service_worker": "background.js" },
   "action": {

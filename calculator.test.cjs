@@ -33,6 +33,25 @@ test('zero returns preserve the exact sum of initial and monthly contributions',
   assert.equal(calculator.project({ initial: 0, monthly: 0 }).finalBalance, 0);
 });
 
+test('zero-return trading-day deposits accumulate exactly in every annual snapshot', () => {
+  for (const timing of ['start', 'end']) {
+    const result = calculator.project({ initial: 1200, monthly: 99999, daily: 150, frequency: 'daily', tradingDays: 252,
+      years: 3, annualRate: 0, annualFee: 0, inflation: 0, timing });
+    assert.equal(result.periodRate, 0);
+    assert.equal(result.periodsPerYear, 252);
+    assert.equal(result.totalPeriods, 756);
+    assert.equal(result.finalBalance, 114600);
+    assert.equal(result.totalContributed, 114600);
+    assert.equal(result.totalGain, 0);
+    assert.equal(result.realFinalBalance, 114600);
+    assert.equal(result.years.length, 4);
+    for (const point of result.years) {
+      assert.equal(point.contributed, 1200 + 150 * 252 * point.year);
+      assert.equal(point.balance, point.contributed);
+    }
+  }
+});
+
 test('negative returns remain negative and reduce invested assets', () => {
   const result = calculator.project({ initial: 100000, monthly: 0, years: 2, annualRate: -25, annualFee: 0 });
   close(result.finalBalance, 56250);
@@ -68,6 +87,45 @@ test('monthly deposits match an independent closed form for both deposit timings
   }
 });
 
+test('trading-day deposits match the annuity formula for gains, losses, and both timings', () => {
+  for (const annualRate of [-20, 6, 14.25, 50]) {
+    for (const tradingDays of [1, 252, 366]) {
+      for (const timing of ['end', 'start']) {
+        const inputs = { initial: 12345.67, monthly: 99999, daily: 78.91, frequency: 'daily', tradingDays,
+          years: 17, annualRate, annualFee: 0.35, timing };
+        const result = calculator.project(inputs);
+        const annualGrowth = (1 + annualRate / 100) * (1 - inputs.annualFee / 100);
+        const rate = annualGrowth ** (1 / tradingDays) - 1;
+        const growth = annualGrowth ** inputs.years;
+        const annuity = inputs.daily * (growth - 1) / rate * (timing === 'start' ? 1 + rate : 1);
+        close(result.finalBalance, inputs.initial * growth + annuity);
+        close(result.periodRate, rate);
+        assert.equal(result.totalContributed, inputs.initial + inputs.daily * tradingDays * inputs.years);
+        assert.equal(result.totalPeriods, tradingDays * inputs.years);
+      }
+    }
+  }
+});
+
+test('lump-sum annual growth and fees agree across monthly and trading-day frequencies', () => {
+  for (const annualRate of [-25, 0, 10, 50]) {
+    const inputs = { initial: 100000, monthly: 0, daily: 0, years: 20, annualRate, annualFee: 0.5 };
+    const monthly = calculator.project(inputs);
+    assert.equal(monthly.periodsPerYear, 12);
+    assert.equal(monthly.totalPeriods, 240);
+    assert.equal(monthly.periodRate, monthly.monthlyRate);
+    for (const tradingDays of [1, 12, 252, 366]) {
+      const daily = calculator.project({ ...inputs, frequency: 'daily', tradingDays });
+      close(daily.finalBalance, monthly.finalBalance);
+      assert.equal(daily.monthlyRate, monthly.monthlyRate);
+      close((1 + daily.periodRate) ** tradingDays, 1 + daily.netAnnualRate);
+      for (let year = 0; year <= inputs.years; year += 1) {
+        close(daily.years[year].balance, inputs.initial * (1 + daily.netAnnualRate) ** year);
+      }
+    }
+  }
+});
+
 test('month-start contributions receive one more month of growth', () => {
   const inputs = { initial: 0, monthly: 1000, years: 1, annualRate: 12, annualFee: 0 };
   const end = calculator.project({ ...inputs, timing: 'end' });
@@ -92,9 +150,28 @@ test('normalization applies omitted defaults without mutating callers', () => {
   assert.deepEqual(calculator.normalizeInputs(), calculator.DEFAULTS);
   const raw = { initial: ' 123.45 ', monthly: '.5', years: '12', annualRate: '-2.5', annualFee: '0', inflation: '2e0', timing: 'start' };
   const normalized = calculator.normalizeInputs(raw);
-  assert.deepEqual(normalized, { initial: 123.45, monthly: 0.5, years: 12, annualRate: -2.5, annualFee: 0, inflation: 2, timing: 'start' });
+  assert.deepEqual(normalized, { initial: 123.45, monthly: 0.5, daily: 100, frequency: 'monthly', tradingDays: 252,
+    years: 12, annualRate: -2.5, annualFee: 0, inflation: 2, timing: 'start' });
   assert.equal(raw.initial, ' 123.45 ');
   assert.ok(Object.isFrozen(calculator.DEFAULTS));
+});
+
+test('monthly and trading-day amounts are preserved independently and old inputs stay monthly', () => {
+  const raw = { initial: 1000, monthly: 200, daily: 30, tradingDays: 250, years: 2, annualRate: 8, annualFee: 0.2, timing: 'start' };
+  const monthly = calculator.project(raw);
+  const daily = calculator.project({ ...raw, frequency: 'daily' });
+  assert.equal(monthly.inputs.frequency, 'monthly');
+  assert.equal(monthly.inputs.monthly, 200);
+  assert.equal(monthly.inputs.daily, 30);
+  assert.equal(daily.inputs.monthly, 200);
+  assert.equal(daily.inputs.daily, 30);
+  assert.equal(monthly.totalContributed, 5800);
+  assert.equal(daily.totalContributed, 16000);
+  assert.deepEqual(calculator.project({ ...raw, frequency: 'monthly' }), monthly);
+  assert.deepEqual(calculator.project({ ...raw, daily: 999, tradingDays: 1 }).years, monthly.years);
+  const oldInputs = { initial: 1000, monthly: 200, years: 2, annualRate: 8, annualFee: 0.2, timing: 'start' };
+  assert.deepEqual(calculator.project(oldInputs).years, monthly.years);
+  assert.equal(raw.frequency, undefined);
 });
 
 test('blank, coercible objects, nonfinite values, and numeric overflow are rejected', () => {
@@ -108,12 +185,18 @@ test('blank, coercible objects, nonfinite values, and numeric overflow are rejec
 
 test('each supported range and integer year constraint is enforced', () => {
   for (const [key, values] of Object.entries({
-    initial: [-0.01, 100000001], monthly: [-1, 100000001], years: [0, 51, 2.5],
+    initial: [-0.01, 100000001], monthly: [-1, 100000001], daily: [-1, 100000001],
+    tradingDays: [0, 367, 251.5], years: [0, 51, 2.5],
     annualRate: [-90.01, 50.01], annualFee: [-0.01, 5.01], inflation: [-0.01, 20.01]
   })) {
     for (const value of values) assert.throws(() => calculator.normalizeInputs({ [key]: value }), RangeError);
   }
   for (const timing of ['', 'middle', null, 0]) assert.throws(() => calculator.normalizeInputs({ timing }));
+  for (const frequency of ['', 'weekly', null, 0, undefined]) assert.throws(() => calculator.normalizeInputs({ frequency }), RangeError);
+  for (const tradingDays of ['', ' ', null, undefined, NaN, Infinity, '0x10', []]) {
+    assert.throws(() => calculator.normalizeInputs({ tradingDays }));
+  }
+  assert.equal(calculator.normalizeInputs({ tradingDays: '252', daily: '12.5', frequency: 'daily' }).tradingDays, 252);
   const upper = calculator.project({ initial: 1e8, monthly: 1e8, years: 50, annualRate: 50, annualFee: 0, inflation: 20 });
   assert.ok(Number.isFinite(upper.finalBalance));
 });

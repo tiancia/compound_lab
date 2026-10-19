@@ -14,6 +14,9 @@
   var DEFAULTS = Object.freeze({
     initial: 100000,
     monthly: 2000,
+    daily: 100,
+    frequency: 'monthly',
+    tradingDays: 252,
     years: 20,
     annualRate: 10,
     annualFee: 0.5,
@@ -24,6 +27,8 @@
   var RULES = {
     initial: { min: 0, max: 100000000, label: '初始投资' },
     monthly: { min: 0, max: 100000000, label: '每月定投' },
+    daily: { min: 0, max: 100000000, label: '每个交易日定投' },
+    tradingDays: { min: 1, max: 366, integer: true, label: '每年交易日' },
     years: { min: 1, max: 50, integer: true, label: '投资年限' },
     annualRate: { min: -90, max: 50, label: '年化收益率' },
     annualFee: { min: 0, max: 5, label: '年度费用率' },
@@ -73,9 +78,13 @@
       var value = Object.prototype.hasOwnProperty.call(raw, key) ? raw[key] : DEFAULTS[key];
       inputs[key] = numericValue(value, key);
     });
+    inputs.frequency = Object.prototype.hasOwnProperty.call(raw, 'frequency') ? raw.frequency : DEFAULTS.frequency;
+    if (inputs.frequency !== 'monthly' && inputs.frequency !== 'daily') {
+      throw new RangeError('定投频率须为按月或按交易日。');
+    }
     inputs.timing = Object.prototype.hasOwnProperty.call(raw, 'timing') ? raw.timing : DEFAULTS.timing;
     if (inputs.timing !== 'start' && inputs.timing !== 'end') {
-      throw new RangeError('定投时点须为月初或月末。');
+      throw new RangeError('定投时点须为期初或期末。');
     }
     return inputs;
   }
@@ -87,10 +96,16 @@
     }
     var annualRate = inputs.annualRate;
     // Fees reduce assets multiplicatively at the annual rate. Convert the
-    // resulting effective annual growth into an equivalent monthly rate.
+    // resulting effective annual growth into an equivalent per-period rate.
     var netAnnualRate = (1 + annualRate / 100) * (1 - inputs.annualFee / 100) - 1;
     var monthlyRate = Math.expm1(Math.log1p(netAnnualRate) / 12);
-    var monthlyGrowth = 1 + monthlyRate;
+    // Daily mode spreads the selected number of trading days evenly over
+    // each year; it does not model an exchange's actual trading calendar.
+    var periodsPerYear = inputs.frequency === 'daily' ? inputs.tradingDays : 12;
+    var contribution = inputs.frequency === 'daily' ? inputs.daily : inputs.monthly;
+    var periodRate = periodsPerYear === 12 ? monthlyRate : Math.expm1(Math.log1p(netAnnualRate) / periodsPerYear);
+    var periodGrowth = 1 + periodRate;
+    var totalPeriods = inputs.years * periodsPerYear;
     var balance = inputs.initial;
     var years = [{
       year: 0,
@@ -100,18 +115,18 @@
       realBalance: balance
     }];
 
-    for (var month = 1; month <= inputs.years * 12; month += 1) {
+    for (var period = 1; period <= totalPeriods; period += 1) {
       if (inputs.timing === 'start') {
-        balance = (balance + inputs.monthly) * monthlyGrowth;
+        balance = (balance + contribution) * periodGrowth;
       } else {
-        balance = balance * monthlyGrowth + inputs.monthly;
+        balance = balance * periodGrowth + contribution;
       }
       if (!Number.isFinite(balance)) {
         throw new RangeError('计算结果超出可支持的数值范围。');
       }
-      if (month % 12 === 0) {
-        var year = month / 12;
-        var contributed = inputs.initial + inputs.monthly * month;
+      if (period % periodsPerYear === 0) {
+        var year = period / periodsPerYear;
+        var contributed = inputs.initial + contribution * period;
         years.push({
           year: year,
           contributed: contributed,
@@ -128,6 +143,9 @@
       annualRate: annualRate,
       netAnnualRate: netAnnualRate,
       monthlyRate: monthlyRate,
+      periodRate: periodRate,
+      periodsPerYear: periodsPerYear,
+      totalPeriods: totalPeriods,
       totalContributed: lastYear.contributed,
       finalBalance: lastYear.balance,
       totalGain: lastYear.gain,
