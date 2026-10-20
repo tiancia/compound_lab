@@ -250,6 +250,9 @@ tbody tr:hover > * { background: #f8faf9; }
 thead .selected-column { color: #235c49; background: #eaf3ec; font-weight: 600; }
 tbody tr:hover .selected-column { background: #e7f1e9; }
 tbody tr:last-child > * { font-weight: 650; }
+.table-value-label { display: block; margin-top: 3px; font-size: 10px; font-weight: 400; }
+.annual-gain { display: block; margin-top: 4px; color: var(--green); font-size: 11px; font-weight: 400; }
+.annual-gain.is-negative { color: var(--error); }
 
 /* Historical context is intentionally quieter than the user's plan. */
 .reference-section { margin-top: 26px; padding: 27px 30px 23px; border: 1px solid #dce6e9; border-radius: 14px; background: #eaf0f2; scroll-margin-top: 25px; }

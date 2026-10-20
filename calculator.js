@@ -112,6 +112,7 @@
       contributed: inputs.initial,
       balance: balance,
       gain: 0,
+      annualGain: 0,
       realBalance: balance
     }];
 
@@ -127,11 +128,13 @@
       if (period % periodsPerYear === 0) {
         var year = period / periodsPerYear;
         var contributed = inputs.initial + contribution * period;
+        var gain = balance - contributed;
         years.push({
           year: year,
           contributed: contributed,
           balance: balance,
-          gain: balance - contributed,
+          gain: gain,
+          annualGain: gain - years[years.length - 1].gain,
           realBalance: balance / Math.pow(1 + inputs.inflation / 100, year)
         });
       }

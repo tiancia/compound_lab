@@ -71,7 +71,7 @@
 
           <div class="scenario-section"><div class="section-heading"><h2>换一种年化，结果如何？</h2><span class="section-hint">点击切换测算情景</span></div><div class="scenario-grid" id="scenario-cards"></div><p class="scenario-note" id="scenario-note">以上均已扣除年化费用 0.5%，为假设测算。</p></div>
 
-          <div class="table-section"><div class="section-heading"><div><h2>把未来拆成年份</h2><p>资产总额包含本金与收益。</p></div><div class="segmented" aria-label="年份显示方式"><button id="milestone-view" class="active" type="button" aria-pressed="true">关键年份</button><button id="annual-view" type="button" aria-pressed="false">逐年查看</button></div></div><p class="table-help">左右滑动查看全部年化，所选情景已高亮</p><div class="table-scroll" tabindex="0" role="region" aria-label="逐年金额对比，可左右滚动"><table><caption class="sr-only">不同年份与年化收益率下的资产总额，单位元</caption><thead id="year-table-head"></thead><tbody id="year-table-body"></tbody></table></div></div>
+          <div class="table-section"><div class="section-heading"><div><h2>把未来拆成年份</h2><p id="table-description">资产总额包含本金与收益。</p></div><div class="segmented" aria-label="年份显示方式"><button id="milestone-view" class="active" type="button" aria-pressed="true">关键年份</button><button id="annual-view" type="button" aria-pressed="false">逐年查看</button></div></div><p class="table-help">左右滑动查看全部年化，所选情景已高亮</p><div class="table-scroll" tabindex="0" role="region" aria-label="逐年金额对比，可左右滚动"><table><caption id="year-table-caption" class="sr-only">不同年份与年化收益率下的资产总额，单位元</caption><thead id="year-table-head"></thead><tbody id="year-table-body"></tbody></table></div></div>
         </div>
         <div id="invalid-results" class="invalid-results" hidden><h2>补全投入计划，即可继续测算</h2><p>请检查标出的参数。空值不会当作 0 计算。</p><button class="text-button" id="fix-input" type="button">返回修改参数</button></div>
       </section>

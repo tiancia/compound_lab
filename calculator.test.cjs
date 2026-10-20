@@ -16,7 +16,7 @@ test('a lump sum compounds at the effective annual rate', () => {
   const result = calculator.project({ initial: 100000, monthly: 0, years: 20, annualRate: 10, annualFee: 0 });
   close(result.finalBalance, 100000 * 1.1 ** 20);
   assert.equal(result.years.length, 21);
-  assert.deepEqual(result.years[0], { year: 0, contributed: 100000, balance: 100000, gain: 0, realBalance: 100000 });
+  assert.deepEqual(result.years[0], { year: 0, contributed: 100000, balance: 100000, gain: 0, annualGain: 0, realBalance: 100000 });
   close(result.years[10].balance, 100000 * 1.1 ** 10);
   close(result.totalGain, result.finalBalance - result.totalContributed);
 });
@@ -29,6 +29,7 @@ test('zero returns preserve the exact sum of initial and monthly contributions',
     assert.equal(result.totalContributed, 6600);
     assert.equal(result.totalGain, 0);
     assert.equal(result.realFinalBalance, 6600);
+    for (const point of result.years) assert.equal(point.annualGain, 0);
   }
   assert.equal(calculator.project({ initial: 0, monthly: 0 }).finalBalance, 0);
 });
@@ -48,6 +49,7 @@ test('zero-return trading-day deposits accumulate exactly in every annual snapsh
     for (const point of result.years) {
       assert.equal(point.contributed, 1200 + 150 * 252 * point.year);
       assert.equal(point.balance, point.contributed);
+      assert.equal(point.annualGain, 0);
     }
   }
 });
@@ -57,6 +59,8 @@ test('negative returns remain negative and reduce invested assets', () => {
   close(result.finalBalance, 56250);
   assert.ok(result.monthlyRate < 0);
   close(result.totalGain, -43750);
+  close(result.years[1].annualGain, -25000);
+  close(result.years[2].annualGain, -18750);
   const minimum = calculator.project({ annualRate: -90, annualFee: 5, years: 80 });
   assert.ok(Number.isFinite(minimum.finalBalance));
   assert.ok(minimum.finalBalance >= 0);
@@ -66,9 +70,45 @@ test('annual fees reduce growth multiplicatively', () => {
   const result = calculator.project({ initial: 100000, monthly: 0, years: 1, annualRate: 10, annualFee: 0.5 });
   close(result.netAnnualRate, 0.0945);
   close(result.finalBalance, 109450);
+  close(result.years[1].annualGain, 9450);
   close((1 + result.monthlyRate) ** 12, 1.0945);
   const declining = calculator.project({ initial: 100000, monthly: 0, years: 1, annualRate: 0, annualFee: 1 });
   close(declining.finalBalance, 99000);
+  close(declining.years[1].annualGain, -1000);
+});
+
+test('annual gains contain only that year\'s earnings on a lump sum', () => {
+  const result = calculator.project({ initial: 1000, monthly: 0, years: 2, annualRate: 10, annualFee: 0 });
+  assert.equal(result.years[0].annualGain, 0);
+  close(result.years[1].annualGain, 100);
+  close(result.years[2].annualGain, 110);
+  close(result.totalGain, 210);
+});
+
+test('annual gains exclude deposits for both frequencies, timings, gains, and losses', () => {
+  for (const frequency of ['monthly', 'daily']) {
+    for (const timing of ['end', 'start']) {
+      for (const annualRate of [-20, 10]) {
+        const inputs = { initial: 1000, monthly: 100, daily: 20, frequency, tradingDays: 252,
+          years: 3, annualRate, annualFee: 0.5, timing };
+        const result = calculator.project(inputs);
+        const periods = frequency === 'daily' ? inputs.tradingDays : 12;
+        const contribution = frequency === 'daily' ? inputs.daily : inputs.monthly;
+        const annualGrowth = (1 + annualRate / 100) * (1 - inputs.annualFee / 100);
+        const periodGrowth = annualGrowth ** (1 / periods);
+        const annualDeposits = contribution * periods;
+        const depositBalance = contribution * (annualGrowth - 1) / (periodGrowth - 1)
+          * (timing === 'start' ? periodGrowth : 1);
+        let openingBalance = inputs.initial;
+        for (let year = 1; year <= inputs.years; year += 1) {
+          const expectedGain = openingBalance * (annualGrowth - 1) + depositBalance - annualDeposits;
+          close(result.years[year].annualGain, expectedGain);
+          openingBalance = openingBalance * annualGrowth + depositBalance;
+        }
+        close(result.years.reduce((sum, point) => sum + point.annualGain, 0), result.totalGain);
+      }
+    }
+  }
 });
 
 test('monthly deposits match an independent closed form for both deposit timings', () => {

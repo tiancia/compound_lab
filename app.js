@@ -252,7 +252,11 @@
   function renderTable(series) {
     const header = document.createElement("tr");
     header.append(makeText("th", "投资年数"), makeText("th", "累计投入"));
-    series.forEach((item) => header.append(makeText("th", `${item.rate}% 年化${item.name === "自定义" ? "（自定义）" : ""}`, item.rate === inputs.annualRate ? "selected-column" : "")));
+    series.forEach((item) => {
+      const cell = makeText("th", `${item.rate}% 年化${item.name === "自定义" ? "（自定义）" : ""}`, item.rate === inputs.annualRate ? "selected-column" : "");
+      if (showAnnual) cell.append(makeText("span", "资产总额 / 当年收益", "table-value-label"));
+      header.append(cell);
+    });
     Array.from(header.children).forEach((th) => th.scope = "col");
     $("year-table-head").replaceChildren(header);
     const years = inputs.years <= 5 || showAnnual
@@ -263,9 +267,23 @@
       const yearCell = makeText("th", `${year} 年`);
       yearCell.scope = "row";
       row.append(yearCell, makeText("td", money(series[0].result.years[year].contributed)));
-      series.forEach((item) => row.append(makeText("td", money(item.result.years[year].balance), item.rate === inputs.annualRate ? "selected-column" : "")));
+      series.forEach((item) => {
+        const point = item.result.years[year];
+        const cell = makeText("td", money(point.balance), item.rate === inputs.annualRate ? "selected-column" : "");
+        if (showAnnual) {
+          const annualGain = Math.round(point.annualGain) || 0;
+          cell.append(makeText("span", `当年收益 ${annualGain > 0 ? "+" : ""}${money(annualGain)}`, `annual-gain${annualGain < 0 ? " is-negative" : ""}`));
+        }
+        row.append(cell);
+      });
       return row;
     }));
+    $("table-description").textContent = showAnnual
+      ? "当年收益 = 本年末资产 − 上年末资产 − 当年新增投入，已扣除年化费用。"
+      : "资产总额包含本金与收益。";
+    $("year-table-caption").textContent = showAnnual
+      ? "不同年份与年化收益率下的年末资产总额及当年收益，单位元"
+      : "不同年份与年化收益率下的资产总额，单位元";
     $("milestone-view").classList.toggle("active", !showAnnual);
     $("annual-view").classList.toggle("active", showAnnual);
     $("milestone-view").setAttribute("aria-pressed", !showAnnual);
