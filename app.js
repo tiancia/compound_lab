@@ -41,7 +41,7 @@
     daily: "每日定投须为 0 至 1 亿之间的金额。",
     tradingDays: "每年交易日须为 1 至 366 之间的整数。",
     frequency: "请选择按月或按交易日定投。",
-    years: "投资年限须为 1 至 50 之间的整数。",
+    years: "投资年限须为 1 至 80 之间的整数。",
     annualRate: "年化收益率须为 −90% 至 50% 之间的数值。",
     annualFee: "年化费用须为 0% 至 5% 之间的数值。",
     inflation: "年通胀率须为 0% 至 20% 之间的数值。",
@@ -143,7 +143,7 @@
   function syncControls() {
     syncContributionMode();
     $("years-range").value = inputs.years;
-    const progress = (inputs.years - 1) / 49 * 100;
+    const progress = (inputs.years - 1) / 79 * 100;
     $("years-range").style.background = `linear-gradient(to right,#1c7066 0%,#1c7066 ${progress}%,#e7edee ${progress}%,#e7edee 100%)`;
     document.querySelectorAll("[data-monthly]").forEach((button) => {
       const active = Number(button.dataset.monthly) === inputs.monthly;
@@ -178,11 +178,7 @@
     $("final-balance").title = currency(result.finalBalance);
     $("real-balance").textContent = currency(result.realFinalBalance);
     $("inflation-caption").textContent = `（通胀 ${rateFormat.format(inputs.inflation)}%）`;
-    $("total-contributed").textContent = `¥${compactMoney(result.totalContributed)}`;
-    $("total-contributed").title = currency(result.totalContributed);
-    $("total-gain").textContent = `${result.totalGain < 0 ? "−" : "+"}¥${compactMoney(Math.abs(result.totalGain))}`;
-    $("total-gain").title = currency(result.totalGain);
-    $("total-gain").classList.toggle("negative", result.totalGain < 0);
+    renderMetrics(result.years[inputs.years]);
     $("net-rate").textContent = `年化费用 ${rateFormat.format(inputs.annualFee)}% · 费用后年化 ${rateFormat.format(result.netAnnualRate * 100)}%`;
     const daily = inputs.frequency === "daily";
     const amount = daily ? inputs.daily : inputs.monthly;
@@ -192,12 +188,20 @@
     $("mobile-summary-label").textContent = `${inputs.years} 年后资产总额`;
     $("mobile-summary-value").textContent = `¥${compactMoney(result.finalBalance)}`;
     $("view-results").textContent = "查看结果 ↓";
-    const splitBase = result.totalContributed + Math.max(0, result.totalGain);
-    const contributionShare = splitBase > 0 ? result.totalContributed / splitBase * 100 : 0;
+  }
+
+  function renderMetrics(point) {
+    $("total-contributed").textContent = `¥${compactMoney(point.contributed)}`;
+    $("total-contributed").title = currency(point.contributed);
+    $("total-gain").textContent = `${point.gain < 0 ? "−" : "+"}¥${compactMoney(Math.abs(point.gain))}`;
+    $("total-gain").title = currency(point.gain);
+    $("total-gain").classList.toggle("negative", point.gain < 0);
+    const splitBase = point.contributed + Math.max(0, point.gain);
+    const contributionShare = splitBase > 0 ? point.contributed / splitBase * 100 : 0;
     $("split-contributed").style.width = `${contributionShare}%`;
     $("split-gain").style.width = `${splitBase > 0 ? 100 - contributionShare : 0}%`;
-    document.querySelector(".asset-split").setAttribute("aria-label", splitBase === 0 ? "当前没有投入或收益" : result.totalGain < 0
-      ? `累计投入 ${currency(result.totalContributed)}，亏损 ${currency(-result.totalGain)}`
+    document.querySelector(".asset-split").setAttribute("aria-label", splitBase === 0 ? "当前没有投入或收益" : point.gain < 0
+      ? `累计投入 ${currency(point.contributed)}，亏损 ${currency(-point.gain)}`
       : `本金占 ${Math.round(contributionShare)}%，收益占 ${Math.round(100 - contributionShare)}%`);
   }
 
@@ -348,6 +352,7 @@
     hoverYear = null;
     tooltipPinned = false;
     $("chart-dismiss").hidden = true;
+    if (chartData) renderMetrics(chartData.selected.years[inputs.years]);
   }
 
   function showTooltip(year) {
@@ -359,6 +364,7 @@
     $("chart-year-range").style.setProperty("--range-progress", `${hoverYear / inputs.years * 100}%`);
     $("chart-dismiss").hidden = !tooltipPinned;
     const { series, selected, x, y, marker, top, plotHeight, width, height } = chartData;
+    renderMetrics(selected.years[hoverYear]);
     const tooltip = $("chart-tooltip");
     marker.replaceChildren(svgElement("line", { x1: x(hoverYear), y1: top, x2: x(hoverYear), y2: top + plotHeight, stroke: "#b3c6c4", "stroke-dasharray": "4 4" }));
     series.forEach((item) => marker.append(svgElement("circle", { cx: x(hoverYear), cy: y(item.result.years[hoverYear].balance), r: 4, fill: item.color, stroke: "#fff", "stroke-width": 2 })));

@@ -57,7 +57,7 @@ test('negative returns remain negative and reduce invested assets', () => {
   close(result.finalBalance, 56250);
   assert.ok(result.monthlyRate < 0);
   close(result.totalGain, -43750);
-  const minimum = calculator.project({ annualRate: -90, annualFee: 5, years: 50 });
+  const minimum = calculator.project({ annualRate: -90, annualFee: 5, years: 80 });
   assert.ok(Number.isFinite(minimum.finalBalance));
   assert.ok(minimum.finalBalance >= 0);
 });
@@ -126,6 +126,29 @@ test('lump-sum annual growth and fees agree across monthly and trading-day frequ
   }
 });
 
+test('80-year monthly and trading-day projections match the annuity formula', () => {
+  for (const frequency of ['monthly', 'daily']) {
+    for (const timing of ['end', 'start']) {
+      const inputs = { initial: 100000, monthly: 2000, daily: 100, frequency, tradingDays: 252,
+        years: 80, annualRate: 10, annualFee: 0.5, timing };
+      const result = calculator.project(inputs);
+      const periodsPerYear = frequency === 'daily' ? inputs.tradingDays : 12;
+      const contribution = frequency === 'daily' ? inputs.daily : inputs.monthly;
+      const annualGrowth = (1 + inputs.annualRate / 100) * (1 - inputs.annualFee / 100);
+      const rate = annualGrowth ** (1 / periodsPerYear) - 1;
+      const growth = annualGrowth ** inputs.years;
+      const annuity = contribution * (growth - 1) / rate * (timing === 'start' ? 1 + rate : 1);
+      close(result.finalBalance, inputs.initial * growth + annuity);
+      assert.equal(result.totalPeriods, periodsPerYear * 80);
+      assert.equal(result.totalContributed, inputs.initial + contribution * periodsPerYear * 80);
+      assert.equal(result.years.length, 81);
+      assert.equal(result.years[80].year, 80);
+      close(result.years[80].balance, result.finalBalance);
+      close(result.totalGain, result.finalBalance - result.totalContributed);
+    }
+  }
+});
+
 test('month-start contributions receive one more month of growth', () => {
   const inputs = { initial: 0, monthly: 1000, years: 1, annualRate: 12, annualFee: 0 };
   const end = calculator.project({ ...inputs, timing: 'end' });
@@ -186,7 +209,7 @@ test('blank, coercible objects, nonfinite values, and numeric overflow are rejec
 test('each supported range and integer year constraint is enforced', () => {
   for (const [key, values] of Object.entries({
     initial: [-0.01, 100000001], monthly: [-1, 100000001], daily: [-1, 100000001],
-    tradingDays: [0, 367, 251.5], years: [0, 51, 2.5],
+    tradingDays: [0, 367, 251.5], years: [0, 81, 2.5],
     annualRate: [-90.01, 50.01], annualFee: [-0.01, 5.01], inflation: [-0.01, 20.01]
   })) {
     for (const value of values) assert.throws(() => calculator.normalizeInputs({ [key]: value }), RangeError);
@@ -197,7 +220,7 @@ test('each supported range and integer year constraint is enforced', () => {
     assert.throws(() => calculator.normalizeInputs({ tradingDays }));
   }
   assert.equal(calculator.normalizeInputs({ tradingDays: '252', daily: '12.5', frequency: 'daily' }).tradingDays, 252);
-  const upper = calculator.project({ initial: 1e8, monthly: 1e8, years: 50, annualRate: 50, annualFee: 0, inflation: 20 });
+  const upper = calculator.project({ initial: 1e8, monthly: 1e8, years: 80, annualRate: 50, annualFee: 0, inflation: 20 });
   assert.ok(Number.isFinite(upper.finalBalance));
 });
 

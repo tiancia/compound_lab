@@ -29,7 +29,7 @@
     monthly: { min: 0, max: 100000000, label: '每月定投' },
     daily: { min: 0, max: 100000000, label: '每个交易日定投' },
     tradingDays: { min: 1, max: 366, integer: true, label: '每年交易日' },
-    years: { min: 1, max: 50, integer: true, label: '投资年限' },
+    years: { min: 1, max: 80, integer: true, label: '投资年限' },
     annualRate: { min: -90, max: 50, label: '年化收益率' },
     annualFee: { min: 0, max: 5, label: '年度费用率' },
     inflation: { min: 0, max: 20, label: '年通胀率' }
