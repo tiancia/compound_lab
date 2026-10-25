@@ -4,19 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="输入本金、每月或每个交易日定投和投资年限，对比不同年化收益下的资产总额。基于纳斯达克 100 历史参考的本地复利计算器。">
+  <meta name="description" content="计算复利、工资到手与家庭结余，考虑个税、五险一金、育儿与医疗开支，规划资产积累和财富自由门槛。">
   <title>年轮 · 复利计算器</title>
   <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="salary.css">
   <script src="calculator.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="salary.js" defer></script>
+  <script src="salary-app.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#results">跳到计算结果</a>
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="#" aria-label="年轮复利计算器首页"><img src="logo.svg" alt="" width="36" height="36"><span>年轮<span class="brand-description">复利计算器</span></span></a>
-      <nav aria-label="页面导航"><a class="nav-active" href="#calculator">复利测算</a><a href="#reference">年化参考 <span aria-hidden="true">↗</span></a></nav>
+      <nav aria-label="页面导航"><a class="nav-active" href="#calculator">复利测算</a><a href="#salary-planner">工资与财富自由</a><a href="#reference">年化参考 <span aria-hidden="true">↗</span></a></nav>
       <span class="local-badge"><span aria-hidden="true"></span>离线计算 · 无需账户</span>
     </div>
   </header>
@@ -76,6 +79,133 @@
         <div id="invalid-results" class="invalid-results" hidden><h2>补全投入计划，即可继续测算</h2><p>请检查标出的参数。空值不会当作 0 计算。</p><button class="text-button" id="fix-input" type="button">返回修改参数</button></div>
       </section>
     </div>
+
+    <section class="salary-planner" id="salary-planner" aria-labelledby="salary-title">
+      <div class="salary-heading">
+        <div><h2 id="salary-title">从每一份工资，走向财务自由</h2><p>算清到手、留住结余，再看看资产何时能覆盖生活。</p></div>
+        <a class="salary-link" href="#calculator">调整本金与收益假设</a>
+      </div>
+      <div class="salary-workspace">
+        <aside class="salary-controls" aria-labelledby="salary-settings-title">
+          <div class="salary-controls-heading"><h3 id="salary-settings-title">我的收入与生活</h3><button class="salary-reset" id="salary-reset" type="button">恢复默认</button></div>
+          <p class="salary-help">以中国大陆居民工资为口径，金额均为人民币。</p>
+          <form id="salary-form" novalidate>
+            <input type="hidden" id="salary-startYear" name="startYear" value="2026">
+            <details class="salary-group" open>
+              <summary>工资收入 <span aria-hidden="true">＋</span></summary>
+              <div class="salary-fields">
+                <div class="salary-field"><label for="salary-monthlyGross">税前月薪</label><div class="salary-input"><input id="salary-monthlyGross" name="monthlyGross" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="18000" required><span>元 / 月</span></div></div>
+                <div class="salary-field"><label for="salary-annualBonus">全年一次性奖金</label><div class="salary-input"><input id="salary-annualBonus" name="annualBonus" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="20000" required><span>元 / 年</span></div></div>
+                <div class="salary-field salary-field-wide"><label for="salary-bonusMode">奖金计税方式</label><select id="salary-bonusMode" name="bonusMode"><option value="separate">符合条件时单独计税</option><option value="combined">并入综合所得</option></select></div>
+                <div class="salary-field"><label for="salary-salaryGrowth">工资年增长</label><div class="salary-input"><input id="salary-salaryGrowth" name="salaryGrowth" type="number" inputmode="decimal" min="-90" max="50" step="any" value="3" required><span>%</span></div></div>
+                <div class="salary-field"><label for="salary-salaryYears">继续领取工资</label><div class="salary-input"><input id="salary-salaryYears" name="salaryYears" type="number" inputmode="numeric" min="0" max="80" step="1" value="30" required><span>年</span></div></div>
+                <div class="salary-field salary-field-wide"><label for="salary-otherIncome">其他税后收入</label><div class="salary-input"><input id="salary-otherIncome" name="otherIncome" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="0" required><span>元 / 月</span></div></div>
+                <p class="salary-help salary-field-wide">工资年数填 0 可测算停止工作后的生活；不自动计入退休金。奖金优惠按已公布期限至 2027 年，2028 年起按并入综合所得测算。</p>
+              </div>
+            </details>
+            <details class="salary-group">
+              <summary>五险一金与个税 <span aria-hidden="true">＋</span></summary>
+              <div class="salary-fields">
+                <div class="salary-field salary-field-wide"><label for="salary-socialBase">社保月缴费基数</label><div class="salary-input"><input id="salary-socialBase" name="socialBase" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="0" required><span>元</span></div><p class="salary-help">填 0 随税前月薪；请按当地上下限填实际基数。</p></div>
+                <div class="salary-field"><label for="salary-pensionRate">个人养老比例</label><div class="salary-input"><input id="salary-pensionRate" name="pensionRate" type="number" inputmode="decimal" min="0" max="100" step="any" value="8" required><span>%</span></div></div>
+                <div class="salary-field"><label for="salary-medicalRate">个人医疗比例</label><div class="salary-input"><input id="salary-medicalRate" name="medicalRate" type="number" inputmode="decimal" min="0" max="100" step="any" value="2" required><span>%</span></div></div>
+                <div class="salary-field"><label for="salary-unemploymentRate">个人失业比例</label><div class="salary-input"><input id="salary-unemploymentRate" name="unemploymentRate" type="number" inputmode="decimal" min="0" max="100" step="any" value="0.5" required><span>%</span></div></div>
+                <div class="salary-field"><label for="salary-socialFixed">社保固定附加额</label><div class="salary-input"><input id="salary-socialFixed" name="socialFixed" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="0" required><span>元 / 月</span></div></div>
+                <p class="salary-help salary-field-wide">上述比例仅为演示，工伤、生育保险通常由单位承担，个人不另扣。缴费基数和费率请用工资单校准。</p>
+                <div class="salary-field salary-field-wide"><label for="salary-fundBase">公积金月缴存基数</label><div class="salary-input"><input id="salary-fundBase" name="fundBase" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="0" required><span>元</span></div><p class="salary-help">填 0 随税前月薪；请使用符合当地扣除上限的实际基数。</p></div>
+                <div class="salary-field"><label for="salary-fundEmployeeRate">个人公积金比例</label><div class="salary-input"><input id="salary-fundEmployeeRate" name="fundEmployeeRate" type="number" inputmode="decimal" min="0" max="12" step="any" value="7" required><span>%</span></div></div>
+                <div class="salary-field"><label for="salary-fundEmployerRate">单位公积金比例</label><div class="salary-input"><input id="salary-fundEmployerRate" name="fundEmployerRate" type="number" inputmode="decimal" min="0" max="12" step="any" value="7" required><span>%</span></div></div>
+                <div class="salary-field salary-field-wide"><label for="salary-specialDeduction">专项附加扣除合计</label><div class="salary-input"><input id="salary-specialDeduction" name="specialDeduction" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="1500" required><span>元 / 月</span></div><p class="salary-help">填本人可享受的育儿、教育、住房、赡养等扣除总额。孩子的生活开支不会自动计入扣税；租房与房贷等须符合扣除规则。</p></div>
+              </div>
+            </details>
+            <details class="salary-group">
+              <summary>家庭开支 <span aria-hidden="true">＋</span></summary>
+              <div class="salary-fields">
+                <div class="salary-field salary-field-wide"><label for="salary-livingMonthly">每月必要开支</label><div class="salary-input"><input id="salary-livingMonthly" name="livingMonthly" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="5000" required><span>元 / 月</span></div><p class="salary-help">包括住房、饮食、交通等；孩子开支在下方单独填写。</p></div>
+                <div class="salary-field"><label for="salary-children">需要抚养的孩子</label><div class="salary-input"><input id="salary-children" name="children" type="number" inputmode="numeric" min="0" max="10" step="1" value="0" required><span>个</span></div></div>
+                <div class="salary-field"><label for="salary-childYears">继续抚养年数</label><div class="salary-input"><input id="salary-childYears" name="childYears" type="number" inputmode="numeric" min="0" max="80" step="1" value="18" required><span>年</span></div></div>
+                <div class="salary-field salary-field-wide"><label for="salary-childMonthly">每个孩子的每月开支</label><div class="salary-input"><input id="salary-childMonthly" name="childMonthly" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="2000" required><span>元 / 人</span></div><p class="salary-help">用统一预算估算所有孩子；到设定年数后停止这项开支。</p></div>
+                <div class="salary-field salary-field-wide"><label for="salary-annualOtherExpense">其他年度支出</label><div class="salary-input"><input id="salary-annualOtherExpense" name="annualOtherExpense" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="6000" required><span>元 / 年</span></div><p class="salary-help">可填商业保险、旅行、赡养等，避免与每月开支重复。生活预算按上方通胀率增长。</p></div>
+              </div>
+            </details>
+            <details class="salary-group">
+              <summary>安全储备与提取 <span aria-hidden="true">＋</span></summary>
+              <div class="salary-fields">
+                <div class="salary-field"><label for="salary-emergencyMonths">预留应急生活费</label><div class="salary-input"><input id="salary-emergencyMonths" name="emergencyMonths" type="number" inputmode="decimal" min="0" max="120" step="any" value="6" required><span>个月</span></div></div>
+                <div class="salary-field"><label for="salary-medicalReserve">重大疾病备用金</label><div class="salary-input"><input id="salary-medicalReserve" name="medicalReserve" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="100000" required><span>元</span></div></div>
+                <p class="salary-help salary-field-wide">应急和医疗备用金是自由目标中单独保留的资产，不作为年度重复支出，也不自动享受个税扣除。</p>
+                <div class="salary-field"><label for="salary-shockCost">一次性突发支出</label><div class="salary-input"><input id="salary-shockCost" name="shockCost" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="0" required><span>元</span></div></div>
+                <div class="salary-field"><label for="salary-shockYear">预计发生于</label><div class="salary-input"><input id="salary-shockYear" name="shockYear" type="number" inputmode="numeric" min="1" max="80" step="1" value="5" required><span>第几年</span></div></div>
+                <p class="salary-help salary-field-wide">用今日金额模拟疾病等冲击，发生时按通胀调整并实际扣减资产。无法覆盖的部分会显示资金缺口。</p>
+                <div class="salary-field salary-field-wide"><label for="salary-initialCash">现有现金余额</label><div class="salary-input"><input id="salary-initialCash" name="initialCash" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="0" required><span>元</span></div><p class="salary-help">不含上方已经填写的一次性投入，避免将同一笔钱重复计算。</p></div>
+                <div class="salary-field"><label for="salary-fundBalance">现有公积金余额</label><div class="salary-input"><input id="salary-fundBalance" name="fundBalance" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="0" required><span>元</span></div></div>
+                <div class="salary-field"><label for="salary-fundAnnualRate">公积金年收益</label><div class="salary-input"><input id="salary-fundAnnualRate" name="fundAnnualRate" type="number" inputmode="decimal" min="-90" max="30" step="any" value="1.5" required><span>%</span></div></div>
+                <div class="salary-field salary-field-wide"><label for="salary-fundUnlockYear">公积金可提取年份</label><div class="salary-input"><input id="salary-fundUnlockYear" name="fundUnlockYear" type="number" inputmode="numeric" min="0" max="80" step="1" value="0" required><span>第几年</span></div><p class="salary-help">0 表示不提取。仅在确认符合当地条件及额度时填写；情景假设该年末余额及之后每年缴存均可转为现金。</p></div>
+                <div class="salary-field"><label for="salary-otherLocked">其他受限资金</label><div class="salary-input"><input id="salary-otherLocked" name="otherLocked" type="number" inputmode="decimal" min="0" max="100000000" step="any" value="0" required><span>元</span></div></div>
+                <div class="salary-field"><label for="salary-otherUnlockYear">其他资金解锁年</label><div class="salary-input"><input id="salary-otherUnlockYear" name="otherUnlockYear" type="number" inputmode="numeric" min="0" max="80" step="1" value="0" required><span>第几年</span></div></div>
+                <p class="salary-help salary-field-wide">其他资金填现有、已归属的预计净兑现额，0 年表示不解锁。不计未来奖励，且不能与现金、公积金重复；社保缴费不作为可提现资产。</p>
+              </div>
+            </details>
+            <details class="salary-group">
+              <summary>积累策略与自由目标 <span aria-hidden="true">＋</span></summary>
+              <div class="salary-fields">
+                <div class="salary-field salary-field-wide"><label for="salary-investmentMode">年度结余如何分配</label><select id="salary-investmentMode" name="investmentMode"><option value="surplus">按结余比例投资</option><option value="planned">沿用上方定投预算</option></select></div>
+                <div class="salary-field"><label for="salary-investShare">结余投入比例</label><div class="salary-input"><input id="salary-investShare" name="investShare" type="number" inputmode="decimal" min="0" max="100" step="any" value="80" required><span>%</span></div></div>
+                <div class="salary-field"><label for="salary-withdrawalRate">规划年提取率</label><div class="salary-input"><input id="salary-withdrawalRate" name="withdrawalRate" type="number" inputmode="decimal" min="0.1" max="20" step="any" value="3.5" required><span>%</span></div></div>
+                <p class="salary-help salary-field-wide">定投来自税后结余，不重复增加工资收入。定投预算超过结余时按可负担金额投入，未投入部分留作现金；现金按零收益估算。</p>
+                <p class="salary-help salary-field-wide">提取率用于估算资产门槛，默认 3.5% 是可调整假设，不保证退休后的资产足够使用。</p>
+              </div>
+            </details>
+          </form>
+          <p class="salary-save-status" id="salary-save-status">工资参数仅在当前页面使用</p>
+        </aside>
+        <section class="salary-results" id="salary-results" aria-labelledby="salary-results-title">
+          <div class="salary-result-heading"><h3 id="salary-results-title">工资，最终留下多少？</h3><p id="salary-shared-assumptions">沿用上方本金、收益率、通胀与测算年限。</p></div>
+          <p class="salary-error" id="salary-error" role="alert" hidden></p>
+          <div id="salary-result-content">
+            <div class="salary-summary">
+              <div><span>首年月均到手</span><strong id="salary-monthly-net">—</strong><small>全年工资与奖金税后 ÷ 12</small></div>
+              <div><span>首年全年到手</span><strong id="salary-annual-net">—</strong><small>扣除个税、个人社保与公积金</small></div>
+              <div><span>首年可支配结余</span><strong id="salary-surplus">—</strong><small>到手与其他收入减常规开支</small></div>
+              <div><span>期末预计总资产</span><strong id="salary-final-assets">—</strong><small>包含暂不可提取的公积金等</small></div>
+            </div>
+            <div class="salary-ledger-section"><div class="salary-subheading"><h3>首年现金流账本</h3><span>单位：元 / 年</span></div><dl class="salary-ledger" id="salary-ledger"></dl></div>
+            <div class="salary-freedom">
+              <div class="salary-subheading"><h3>距离财务自由</h3><span id="salary-fi-status">门槛测算</span></div>
+              <div class="salary-freedom-values"><div><span>预计达到门槛</span><strong id="salary-fi-year">—</strong></div><div><span>当前所需可用资产</span><strong id="salary-fi-target">—</strong></div></div>
+              <div class="salary-progress" id="salary-fi-progress" role="progressbar" aria-label="当前财务自由目标完成比例" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="salary-fi-progress-fill"></span></div>
+              <p class="salary-progress-label" id="salary-fi-progress-text">—</p>
+              <p class="salary-arrival" id="salary-fi-arrival"></p>
+              <p class="salary-help" id="salary-fi-note">自由目标 = 年度开支 ÷ 年提取率 + 应急与医疗储备。工资和未提取公积金不计入可用资产。</p>
+            </div>
+            <div class="salary-assets-section"><div class="salary-subheading"><h3>期末资产放在哪里？</h3><span>可用与受限分开看</span></div><dl class="salary-assets" id="salary-assets"></dl></div>
+            <div class="salary-chart-section">
+              <div class="salary-subheading"><h3>资产能否追上生活？</h3><span>单位：元</span></div>
+              <div class="salary-chart-legend" aria-label="图例"><span><i class="salary-legend-liquid" aria-hidden="true"></i>可用资产</span><span><i class="salary-legend-total" aria-hidden="true"></i>总资产</span><span><i class="salary-legend-target" aria-hidden="true"></i>自由门槛</span></div>
+              <svg class="salary-chart" id="salary-chart" viewBox="0 0 800 230" role="img" aria-labelledby="salary-chart-title salary-chart-desc"><title id="salary-chart-title">资产与财务自由门槛的逐年变化</title><desc id="salary-chart-desc">对比可用资产、含受限资金的总资产，以及覆盖生活所需的资产门槛。</desc></svg>
+              <div class="salary-year-inspector"><label for="salary-inspect-year">查看年份 <strong id="salary-inspect-label">第 20 年</strong></label><input id="salary-inspect-year" type="range" min="0" max="20" step="1" value="20" aria-label="查看工资与资产测算年份"></div>
+              <p class="salary-help salary-inspect-detail" id="salary-inspect-detail">拖动年份，查看当年可用资产与自由门槛。</p>
+            </div>
+            <p class="salary-warning" id="salary-warning" role="status" hidden></p>
+            <div class="salary-table-section">
+              <div class="salary-subheading"><h3>每一年的生活与积累</h3><span>左右滑动查看全部</span></div>
+              <div class="salary-table-scroll" tabindex="0" role="region" aria-label="工资与资产逐年测算，可左右滚动"><table class="salary-year-table"><caption class="sr-only">每年收入、生活支出、投资收益、可用与受限资产及财务自由门槛，单位人民币元</caption><thead><tr><th scope="col">年份</th><th scope="col">到手与其他收入</th><th scope="col">生活支出</th><th scope="col">投资收益</th><th scope="col">可用资产</th><th scope="col">公积金等受限</th><th scope="col">总资产</th><th scope="col">自由门槛</th><th scope="col">资金缺口</th></tr></thead><tbody id="salary-year-body"></tbody></table></div>
+              <p class="salary-help">可用资产包括投资与现金；应急储备仍在资产内，在自由目标中单独预留。</p>
+            </div>
+          </div>
+        </section>
+      </div>
+      <details class="salary-method" id="salary-method-notes"><summary>测算口径与规则来源 <span aria-hidden="true">＋</span></summary><div class="salary-method-body">
+        <p>工资按中国大陆居民、全年任职估算，以年度收入减去 6 万元、合规个人社保、公积金和专项附加扣除计算个税。月均到手含年终奖，是全年到手 ÷ 12；不是逐月实际预扣工资单。基数请用当地工资单校准，模型不自动查询地方上下限，并假设公积金在合法税前扣除范围内。</p>
+        <p>以 2026 年开始测算。符合条件的年终奖单独计税优惠按已公布期限至 2027 年底，2028 年起并入综合所得。其他税档和专项扣除保持当前名义值；工资、奖金及手填缴费基数随工资增长，固定社保附加额不增长。其他税后收入保持名义值并持续至期末。</p>
+        <p>定投从工资结余分配，不重复算作收入。工资、奖金、税额与年度开支按月均分；沿用交易日预算时也均摊至 12 个月，采用上方期初或期末时点。未投资结余留在现金中，不计利息。公积金年末计入缴存，解锁仅为资产转现金，不产生新收益。</p>
+        <p>每个年末的自由门槛按下一年生活预算计算，儿童开支到设定年数后停止，应急、医疗和待发生冲击储备单独保留。预留资金不作为已花出的费用或医疗税前扣除。实际突发开支按发生年通胀扣减；用尽现金和投资仍无法支付时显示资金缺口，不假设借贷或宣告自由。</p>
+        <p>公积金与其他资金只有按所设年份解锁后才计入可用资产，需自行确认用途、条件及额度。公积金情景假设解锁后继续每年全额提取。养老、医保账户与未填写的退休金不计为可用资产。所有初始余额须彼此不重叠。</p>
+        <p>自由门槛 = 下一年常规支出 ÷ 年提取率 + 应急、医疗与待发生冲击储备。年提取率是可调整假设；固定收益曲线不模拟市场波动顺序、投资变现税费或疾病概率。达标后仍按设置的领薪年数积累，未自动验证立即退休后的持续性。</p>
+        <div id="salary-sources" class="salary-sources"><span>规则核对：2026-10-25</span><a href="https://www.chinatax.gov.cn/n810219/n810744/n3752930/n3752974/c3970366/content.html" target="_blank" rel="noopener noreferrer">个人所得税法</a><a href="https://shanghai.chinatax.gov.cn/zcfw/zcfgk/grsds/202308/t468460.html" target="_blank" rel="noopener noreferrer">年终奖计税期限</a><a href="https://www.chinatax.gov.cn/chinatax/n810341/n810760/c5211366/content.html" target="_blank" rel="noopener noreferrer">专项附加扣除</a><a href="https://shanghai.chinatax.gov.cn/bsfw/nszx/hdfk/202104/t457772.html" target="_blank" rel="noopener noreferrer">公积金扣除限额</a></div>
+      </div></details>
+      <span class="sr-only" id="salary-announcement" aria-live="polite" aria-atomic="true"></span>
+    </section>
 
     <section class="reference-section" id="reference" aria-labelledby="reference-title">
       <div class="reference-intro"><span class="reference-icon" aria-hidden="true">≈</span><div><h2 id="reference-title">年化参考，从哪里来？</h2><p>这里的纳斯达克指纳斯达克 100，常见跟踪产品包括 QQQ；不等同于纳斯达克综合指数。</p></div></div>

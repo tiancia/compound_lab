@@ -117,6 +117,7 @@
     $("view-results").textContent = "修改参数";
     clearTimeout(announcementTimer);
     hideTooltip();
+    document.dispatchEvent(new CustomEvent("compound-plan-change", { detail: { valid: false } }));
   }
 
   function scheduleSave() {
@@ -413,6 +414,7 @@
     renderCards(results);
     renderChart(series, selected);
     renderTable(series);
+    document.dispatchEvent(new CustomEvent("compound-plan-change", { detail: { valid: true, inputs: { ...inputs } } }));
   }
 
   function update(save = true) {
