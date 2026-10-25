@@ -293,15 +293,67 @@ test('an empty expense plan has a finite progress ratio and can be at the thresh
   assert.equal(result.sustainableFreedomYear, 0);
 });
 
-test('strict input normalization rejects coercible, empty and out-of-range values', () => {
+test('blank salary fields with a zero lower bound normalize to zero without replacing omitted defaults', () => {
+  const keys = ['monthlyGross', 'annualBonus', 'socialBase', 'pensionRate', 'medicalRate', 'unemploymentRate',
+    'socialFixed', 'fundBase', 'fundEmployeeRate', 'fundEmployerRate', 'specialDeduction', 'otherIncome',
+    'salaryGrowth', 'salaryYears', 'livingMonthly', 'children', 'childMonthly', 'childYears',
+    'annualOtherExpense', 'emergencyMonths', 'medicalReserve', 'shockCost', 'fundBalance', 'fundAnnualRate',
+    'fundUnlockYear', 'otherLocked', 'otherUnlockYear', 'initialCash', 'investShare'];
+  for (const blank of ['', ' ', '\n\t']) {
+    const blanks = Object.fromEntries(keys.map((key) => [key, blank]));
+    const zeros = Object.fromEntries(keys.map((key) => [key, 0]));
+    const normalized = planner.normalizeInputs(blanks);
+    assert.deepEqual(normalized, planner.normalizeInputs(zeros));
+    assert.equal(normalized.withdrawalRate, planner.DEFAULTS.withdrawalRate);
+    assert.equal(normalized.shockYear, planner.DEFAULTS.shockYear);
+    assert.equal(normalized.startYear, planner.DEFAULTS.startYear);
+    const stopped = planner.project({ ...blanks, monthlyGross: 5000 }, { ...flat, initial: 1200 });
+    assert.equal(stopped.income.takeHome, 0);
+    assert.equal(stopped.annualExpense, 0);
+    assert.equal(stopped.final.totalAssets, 1200);
+    assert.deepEqual(stopped, planner.project({ ...zeros, monthlyGross: 5000 }, { ...flat, initial: 1200 }));
+  }
+  const result = planner.project({ ...clean, monthlyGross: 5000, annualBonus: '', livingMonthly: ' ',
+    annualOtherExpense: '\n', salaryGrowth: '\t', children: '', childYears: '', childMonthly: '',
+    investShare: '', otherIncome: '', initialCash: '', fundBalance: '', otherLocked: '' },
+  { ...flat, initial: 1200 });
+  assert.equal(result.income.takeHome, 60000);
+  assert.equal(result.annualExpense, 0);
+  assert.equal(result.annualSurplus, 60000);
+  assert.equal(result.final.portfolio, 1200);
+  assert.equal(result.final.cash, 180000);
+  assert.equal(result.final.totalAssets, 181200);
+});
+
+test('blank contribution bases retain zero semantics and follow wages without duplicating assets', () => {
+  const salary = { ...clean, monthlyGross: 5000, annualBonus: '', socialBase: '\n', fundBase: ' ',
+    pensionRate: 8, medicalRate: 2, unemploymentRate: .5, fundEmployeeRate: 7, fundEmployerRate: 7,
+    specialDeduction: '', livingMonthly: 1000, investShare: '', salaryYears: 1 };
+  const result = planner.project(salary, { ...flat, years: 1 });
+  assert.equal(result.income.social, 6300);
+  assert.equal(result.income.employeeFund, 4200);
+  assert.equal(result.income.employerFund, 4200);
+  assert.equal(result.income.takeHome, 49500);
+  assert.equal(result.final.cash, 37500);
+  assert.equal(result.final.fund, 8400);
+  assert.equal(result.final.totalAssets, 45900);
+  assert.equal(result.final.totalAssets, 60000 - 6300 - 12000 + 4200);
+});
+
+test('strict input normalization rejects coercible, invalid numeric text and out-of-range values', () => {
   for (const value of [null, [], new Date(), 'hello', true]) assert.throws(() => planner.normalizeInputs(value));
-  for (const value of ['', ' ', null, true, [], {}, '0x10', Infinity, NaN, undefined]) {
+  for (const value of [null, true, false, [], {}, '0x10', Infinity, NaN, undefined, '-', '1e']) {
     assert.throws(() => planner.normalizeInputs({ monthlyGross: value }));
   }
   for (const raw of [{ children: 1.1 }, { children: 11 }, { salaryYears: 81 }, { shockYear: 0 },
     { fundUnlockYear: -1 }, { withdrawalRate: 0 }, { fundEmployeeRate: 13 },
     { pensionRate: 80, medicalRate: 30 }, { bonusMode: 'auto' }, { investmentMode: 'external' }]) {
     assert.throws(() => planner.normalizeInputs(raw));
+  }
+  for (const key of ['withdrawalRate', 'shockYear', 'startYear']) {
+    for (const blank of ['', ' ', '\n\t']) {
+      assert.throws(() => planner.normalizeInputs({ [key]: blank }), RangeError);
+    }
   }
   assert.equal(planner.normalizeInputs({ monthlyGross: '1.8e4' }).monthlyGross, 18000);
   assert.deepEqual(planner.normalizeInputs({}), planner.DEFAULTS);

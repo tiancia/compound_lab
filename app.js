@@ -49,8 +49,11 @@
   };
 
   function readForm() {
-    const raw = Object.fromEntries(keys.map((key) => [key, $(key).value]));
-    // 隐藏的另一种频率沿用上次有效金额，避免空值阻塞当前测算。
+    const raw = Object.fromEntries(keys.map((key) => {
+      const field = $(key);
+      return [key, field.validity.badInput ? NaN : field.value];
+    }));
+    // 隐藏的另一种频率沿用上次有效金额，切换时分别保留两种预算。
     if (raw.frequency === "daily") raw.monthly = inputs.monthly;
     else { raw.daily = inputs.daily; raw.tradingDays = inputs.tradingDays; }
     return raw;
@@ -105,7 +108,7 @@
     });
     $("form-error").textContent = invalidKeys.map((key) => fieldMessages[key]).join(" ") || "参数无法计算，请检查数值。";
     $("form-error").hidden = false;
-    // 保持结果区高度，输入空值或负号的过程中页面不会突然收缩。
+    // 保持结果区高度，输入未完成数字或越界参数时页面不会突然收缩。
     $("results").style.minHeight = `${Math.max(460, $("results").getBoundingClientRect().height)}px`;
     $("results").classList.add("is-invalid");
     $("result-content").hidden = true;
@@ -464,7 +467,7 @@
   }));
   document.querySelectorAll("[data-step-target]").forEach((button) => button.addEventListener("click", () => {
     const field = $(button.dataset.stepTarget);
-    const current = field.value.trim() === "" ? NaN : Number(field.value);
+    const current = field.validity.badInput ? NaN : Number(field.value);
     if (!Number.isFinite(current)) { field.focus(); return; }
     field.value = Math.min(Number(field.max), Math.max(Number(field.min), current + Number(button.dataset.step)));
     userEdited = true;

@@ -58,6 +58,7 @@
   function number(value, key) {
     var result;
     if (typeof value === 'number') result = value;
+    else if (typeof value === 'string' && value.trim() === '') result = 0;
     else if (typeof value === 'string' && DECIMAL.test(value.trim())) result = Number(value.trim());
     else throw new TypeError(LABELS[key] + '必须填写有效数字。');
     if (!Number.isFinite(result)) throw new TypeError(LABELS[key] + '必须是有限数字。');

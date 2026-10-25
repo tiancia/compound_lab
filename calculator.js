@@ -35,8 +35,8 @@
     inflation: { min: 0, max: 20, label: '年通胀率' }
   };
 
-  // Accept ordinary decimal form (including an exponent), never coercible
-  // objects, booleans, hexadecimal text, or an empty input field.
+  // Empty numeric fields mean zero; omitted settings still use their defaults.
+  // Reject coercible objects, booleans and non-decimal text.
   var DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
   function numericValue(value, key) {
@@ -44,6 +44,8 @@
     var number;
     if (typeof value === 'number') {
       number = value;
+    } else if (typeof value === 'string' && value.trim() === '') {
+      number = 0;
     } else if (typeof value === 'string' && DECIMAL.test(value.trim())) {
       number = Number(value.trim());
     } else {

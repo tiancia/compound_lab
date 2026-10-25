@@ -25,7 +25,10 @@
   let storageFailed = false;
 
   function read() {
-    return Object.fromEntries(keys.map((key) => [key, $(`salary-${key}`).value]));
+    return Object.fromEntries(keys.map((key) => {
+      const field = $(`salary-${key}`);
+      return [key, field.validity.badInput ? NaN : field.value];
+    }));
   }
 
   function write(value) {
@@ -47,8 +50,9 @@
     $("salary-error").hidden = false;
     $("salary-result-content").hidden = true;
     clearTimeout(announceTimer);
+    const raw = read();
     for (const key of keys) {
-      try { planner.normalizeInputs({ ...planner.DEFAULTS, [key]: $(`salary-${key}`).value }); }
+      try { planner.normalizeInputs({ ...planner.DEFAULTS, [key]: raw[key] }); }
       catch {
         const field = $(`salary-${key}`);
         field.setAttribute("aria-invalid", "true");

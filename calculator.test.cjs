@@ -237,8 +237,28 @@ test('monthly and trading-day amounts are preserved independently and old inputs
   assert.equal(raw.frequency, undefined);
 });
 
-test('blank, coercible objects, nonfinite values, and numeric overflow are rejected', () => {
-  for (const value of ['', ' ', null, undefined, false, true, [], [10], {}, { valueOf: () => 10 }, NaN, Infinity, -Infinity, 'Infinity', '1e309', '0x10', '0b10', '1_000', '1,000']) {
+test('blank investment amounts and rates calculate exactly like explicit zero', () => {
+  const blanks = { initial: '', monthly: ' ', daily: '\n\t', annualRate: ' \n ', annualFee: '', inflation: '\t' };
+  const zeros = { initial: 0, monthly: 0, daily: 0, annualRate: 0, annualFee: 0, inflation: 0 };
+  for (const frequency of ['monthly', 'daily']) {
+    for (const timing of ['start', 'end']) {
+      const context = { frequency, timing, years: 3 };
+      const result = calculator.project({ ...context, ...blanks });
+      assert.deepEqual(result, calculator.project({ ...context, ...zeros }));
+      assert.equal(result.finalBalance, 0);
+      assert.equal(result.totalContributed, 0);
+      assert.equal(result.realFinalBalance, 0);
+      assert.equal(calculator.project({ ...context, ...blanks, initial: 1200 }).finalBalance, 1200);
+    }
+  }
+  const raw = { initial: 1200, monthly: 0, years: 2, annualFee: 0, annualRate: 10 };
+  assert.equal(calculator.project(raw, ' \n ').finalBalance, 1200);
+  assert.deepEqual(calculator.compare(raw, ['', '\t']).map((result) => result.finalBalance), [1200, 1200]);
+  assert.equal(blanks.monthly, ' ');
+});
+
+test('coercible objects, invalid numeric text, nonfinite values, and numeric overflow are rejected', () => {
+  for (const value of [null, undefined, false, true, [], [10], {}, { valueOf: () => 10 }, NaN, Infinity, -Infinity, 'Infinity', '1e309', '0x10', '0b10', '1_000', '1,000', '-', '1e']) {
     assert.throws(() => calculator.normalizeInputs({ initial: value }), undefined, `Unexpectedly accepted ${String(value)}`);
   }
   for (const raw of [null, [], '100', 100, false, new Date(), new Map(), new Set()]) {
@@ -258,6 +278,11 @@ test('each supported range and integer year constraint is enforced', () => {
   for (const frequency of ['', 'weekly', null, 0, undefined]) assert.throws(() => calculator.normalizeInputs({ frequency }), RangeError);
   for (const tradingDays of ['', ' ', null, undefined, NaN, Infinity, '0x10', []]) {
     assert.throws(() => calculator.normalizeInputs({ tradingDays }));
+  }
+  for (const key of ['years', 'tradingDays']) {
+    for (const blank of ['', ' ', '\n\t']) {
+      assert.throws(() => calculator.normalizeInputs({ [key]: blank }), RangeError);
+    }
   }
   assert.equal(calculator.normalizeInputs({ tradingDays: '252', daily: '12.5', frequency: 'daily' }).tradingDays, 252);
   const upper = calculator.project({ initial: 1e8, monthly: 1e8, years: 80, annualRate: 50, annualFee: 0, inflation: 20 });
